@@ -1,0 +1,10 @@
+*.log
+*.swp
+.project
+.classpath
+.settings/*
+m2localrepo/*
+data/*
+target/*
+tmp/*
+!.gitkeep

@@ -1,0 +1,73 @@
+# TODO
+
+* see the TODO lines in the main java class
+
+
+
+# INSTALL
+# --------------------------------------------------------------------------------------
+
+modifier le POM : supprimer l'élément parent et conserver seulement groupid et version au même niveau que l'artifactId déjà présent
+
+installer le contenu du répertoire lib dans votre répertoire maven ou bien en local
+
+# http://stackoverflow.com/questions/3642023/having-a-3rd-party-jar-included-in-maven-shaded-jar-without-adding-it-to-local-r
+
+
+mvn org.apache.maven.plugins:maven-install-plugin:2.3.1:install-file -Dfile=<my-jar>.jar -DgroupId=dummy -DartifactId=dummy -Dversion=0.0.0 -Dpackaging=jar -DlocalRepositoryPath=`pwd`/repo/
+
+export JAR=lib/apache-mime4j-mbox-iterator-0.8.0-SNAPSHOT.jar
+export GROUPID=org.apache.mime4j
+export ARTIFACTID=apache-mime4j-mbox-iterator
+export VERSION=0.8.0-SNAPSHOT
+export M2LOCALREPO=m2localrepo
+#mvn org.apache.maven.plugins:maven-install-plugin:2.3.1:install-file -Dfile=$JAR -DgroupId=$GROUPID -DartifactId=$ARTIFACTID -Dversion=$VERSION -Dpackaging=jar -DlocalRepositoryPath=`pwd`/$M2LOCALREPO
+mvn org.apache.maven.plugins:maven-install-plugin:2.5.1:install-file -Dfile=$JAR -DgroupId=$GROUPID -DartifactId=$ARTIFACTID -Dversion=$VERSION -Dpackaging=jar -DlocalRepositoryPath=`pwd`/$M2LOCALREPO
+
+export JAR=lib/mbox-parser-0.0.1-SNAPSHOT.jar
+export GROUPID=emailparser
+export ARTIFACTID=mbox-parser
+export VERSION=0.0.1-SNAPSHOT
+export M2LOCALREPO=m2localrepo
+mvn org.apache.maven.plugins:maven-install-plugin:2.3.1:install-file -Dfile=$JAR -DgroupId=$GROUPID -DartifactId=$ARTIFACTID -Dversion=$VERSION -Dpackaging=jar -DlocalRepositoryPath=`pwd`/$M2LOCALREPO
+
+export JAR=lib/msgparser-1.10.jar
+export GROUPID=com.auxilii
+export ARTIFACTID=msgparser
+export VERSION=1.10
+export M2LOCALREPO=m2localrepo
+mvn org.apache.maven.plugins:maven-install-plugin:2.3.1:install-file -Dfile=$JAR -DgroupId=$GROUPID -DartifactId=$ARTIFACTID -Dversion=$VERSION -Dpackaging=jar -DlocalRepositoryPath=`pwd`/$M2LOCALREPO
+	
+export JAR=lib/zim-parser-0.0.1-SNAPSHOT.jar
+export GROUPID=org.openzim
+export ARTIFACTID=zim-parser
+export VERSION=0.0.1-SNAPSHOT
+export M2LOCALREPO=m2localrepo
+mvn org.apache.maven.plugins:maven-install-plugin:2.3.1:install-file -Dfile=$JAR -DgroupId=$GROUPID -DartifactId=$ARTIFACTID -Dversion=$VERSION -Dpackaging=jar -DlocalRepositoryPath=`pwd`/$M2LOCALREPO
+
+	 The following artifacts could not be resolved  was cached in the local repository
+
+
+# log run MboxResourceBuilderWFMain
+# -------------------------------------------------------------
+Info: MBoxBuilderAE: emailAnalyzer.ae.MBoxBuilderAE@5cbcdfdb
+Info: # of processed JCas 39230
+Info: # of times the mapping file was updated 39230
+Info: # of messages with a strange subject 1314
+Info: # of created JCas: 39230
+Info: # of message with a null id: 19
+Info: # of created JCas: 39230
+Info: # of message with a null id: 19
+
+# log run MessageCoupleAlignmentWFMain
+# -------------------------------------------------------------
+
+Debug: URL: message-2279279234036469661_message-1974276533163618050
+Debug: processing message-2279279234036469661_message-1974276533163618050
+Info: # of message with a corresponding file 39103
+Info: There are 1588 messageId without a filename correspondance
+Info: There are 6762 couple of messageId effectively created (both with a filename correspondance)
+Info: # of message with a corresponding file 39103
+Info: There are 1588 messageId without a filename correspondance
+Info: There are 6762 couple of messageId effectively created (both with a filename correspondance)
+
