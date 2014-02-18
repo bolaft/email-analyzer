@@ -10,26 +10,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 
 public class IO {
-	
-	/**
-	 * Prints a string to the file system
-	 * @param text
-	 * @param filename
-	 * @param append
-	 */
-	public static void write(String text, String filename, Boolean append) {
-		PrintWriter out = null;
-		
-		try {
-			out = new PrintWriter(new FileOutputStream(new File(filename), append));
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-		
-		out.println(text);
-		out.close();
-	}
-	
 	/**
 	 * http://stackoverflow.com/questions/326390/how-to-create-a-java-string-from-the-contents-of-a-file
 	 * Alternative exists: slower but less memory consuming
@@ -56,5 +36,24 @@ public class IO {
 		reader.close();
 
 		return builder.toString();
+	}
+	
+	/**
+	 * Prints a string to the file system
+	 * @param text
+	 * @param filename
+	 * @param append
+	 */
+	public static void write(String text, String filename, Boolean append) {
+		PrintWriter out = null;
+		
+		try {
+			out = new PrintWriter(new FileOutputStream(new File(filename), append));
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
+		out.println(text);
+		out.close();
 	}
 }

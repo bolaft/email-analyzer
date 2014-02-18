@@ -64,7 +64,7 @@ public class MBoxCollectionReader extends JCasCollectionReader_ImplBase {
 
 	private Set<String> messageIdUrlAlreadyCreated = new HashSet<String>();
 	
-	private boolean close_prints = false;
+	public static boolean close_prints = false;
 	
 	/**
 	 * Get a list of the urls contained in the zim file
