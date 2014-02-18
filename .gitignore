@@ -1,3 +1,4 @@
+*.arff
 *.log
 *.swp
 .project
