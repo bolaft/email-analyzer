@@ -1,0 +1,41 @@
+@relation -/test
+
+@attribute position integer
+@attribute number_of_tokens integer
+@attribute number_of_characters integer
+@attribute number_of_quote_symbols integer
+@attribute average_token_length real
+@attribute proportion_of_uppercase_characters real
+@attribute proportion_of_alphabetic_characters real
+@attribute proportion_of_numeric_characters real
+@attribute deleniti float
+@attribute voluptatum float
+@attribute voluptas float
+@attribute libero float
+@attribute Nam float
+@attribute assumenda float
+@attribute praesentium float
+@attribute ducimus float
+@attribute blanditiis float
+@attribute expedita float
+@attribute tempore float
+@attribute soluta float
+@attribute cum float
+@attribute distinctio float
+@attribute omnis float
+@attribute class {I,BE,B,E}
+
+@data
+1,8,38,0,3.875,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,B
+1,9,50,0,4.66666666667,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,B
+3,33,219,0,5.66666666667,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,I
+2,5,39,0,7.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,I
+2,6,54,0,8.16666666667,0,0,0,0.427491559577,0.427491559577,0,0,0,0,0.427491559577,0.427491559577,0.427491559577,0,0,0,0,0,0,I
+9,10,96,0,8.7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,E
+3,3,22,0,6.66666666667,0,0,0,0,0,0.597253156409,0,0,0.597253156409,0,0,0,0,0,0,0,0,0,E
+8,32,224,0,6.03125,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,I
+6,11,63,0,4.81818181818,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,BE
+5,4,26,0,5.75,0,0,0,0,0,0,0.512989871492,0,0,0,0,0,0,0.512989871492,0.512989871492,0.512989871492,0,0,E
+4,21,151,0,6.2380952381,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,BE
+4,6,32,0,4.5,0,0,0,0,0,0,0,0.427491559577,0,0,0,0,0.427491559577,0,0,0,0.427491559577,0,I
+7,10,73,0,6.4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.427491559577,B

@@ -64,6 +64,8 @@ public class MBoxCollectionReader extends JCasCollectionReader_ImplBase {
 
 	private Set<String> messageIdUrlAlreadyCreated = new HashSet<String>();
 	
+	private boolean close_prints = false;
+	
 	/**
 	 * Get a list of the urls contained in the zim file
 	 */
@@ -188,10 +190,14 @@ public class MBoxCollectionReader extends JCasCollectionReader_ImplBase {
 	 * @see org.apache.uima.collection.base_cpm.BaseCollectionReader#close()
 	 */
 	public void close() throws IOException {
-		Out.print("# of created JCas: " + messageIndex, Out.INFO_LEVEL);
-		Out.print("# of message with a null id: " + msgWiNullId, Out.INFO_LEVEL);
-		
-		Out.print("done", Out.INFO_LEVEL);
+		// Hack to prevent multiple prints
+		if (!close_prints) {
+			Out.print("# of created JCas: " + messageIndex, Out.INFO_LEVEL);
+			Out.print("# of message with a null id: " + msgWiNullId, Out.INFO_LEVEL);
+			Out.print("done", Out.INFO_LEVEL);
+			
+			close_prints = true;
+		}
 	}
 
 	/**

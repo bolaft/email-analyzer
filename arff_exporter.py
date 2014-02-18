@@ -3,7 +3,7 @@
 
 """
 :Name:
-    cross_validator.py
+    arff_exporter.py
 
 :Authors:
     Soufian Salim (soufi@nsal.im)
@@ -12,106 +12,61 @@
     february 13, 2014 (creation)
 
 :Description:
-    K-fold cross-validator for tagged emails as outputted by the LINA email-analyser project
-    (see https://github.com/bolaft/email-analyser)
+    Converts tagged emails as outputted by the LINA email-analyzer project into valid Weka datasets (.arff files)
+    (see https://github.com/bolaft/email-analyzer)
 """
 
 from text.blob import TextBlob
-from arff_writer import wordstotal as wt
 
-import arff_writer
 import math
 import sys
 import codecs
-import subprocess
 import os
-
-# Constants
-
-TEMP_FOLDER = "tmp/"
-DATA_FOLDER = "data/"
-
-PATTERN_FILE = "patterns"
-
-MIN_TF_IDF = 0.4
-K = 3
+import hashlib
 
 # Main
 def main(argv):
-    if len(argv) != 0:
-        print("This script takes no argument")
+    ######################## ARGS ########################
+    
+    if len(argv) != 4:
+        print("Usage: " + argv[0] + " <data folder> <arff filename> <TF-IDF threshold>")
         sys.exit()
 
-    clear_temp_folder()
+    # adding a "/" to the dirpath if not present
+    data_folder = argv[1] + "/" if not argv[1].endswith("/") else argv[1]
 
-    features = [
-        ("position", "integer"),
-        ("number_of_tokens", "integer"),
-        ("number_of_characters", "integer"),
-        ("number_of_quote_symbols", "integer"),
-        ("average_token_length", "real"),
-        ("proportion_of_uppercase", "real"),
-        ("proportion_of_alphabetic_characters", "real"),
-        ("proportion_of_numeric_characters", "real")
-    ]
+    # adding a .arff extension if it was not specified
+    arff_file = argv[2] + ".arff" if not argv[2].endswith(".arff") else argv[2]
 
-    data_sets = build_data_set(load_data(DATA_FOLDER))
+    if not os.path.isdir(data_folder):
+        sys.exit(data_folder + " is not a directory")
 
-    write_arff(data_sets, features, TEMP_FOLDER + "dataset.arff")
+    if not os.access(os.path.dirname(arff_file), os.W_OK):
+        sys.exit(arff_file + " is not accessible")
 
-    # for train, test in generate_k_pairs(load_data(DATA_FOLDER), K):
-    #     train_file = TEMP_FOLDER + str(i) + ".train.arff"
-    #     test_file = TEMP_FOLDER + str(i) + ".test.arff"
-    #     gold_file = TEMP_FOLDER + str(i) + ".gold.arff"
+    try:
+        threshold = float(argv[3])
+    except:
+        sys.exit(argv[3] + " is not a floating number")
 
-    #     print "exporting " + train_file + "..."
-    #     write_arff(build_data_set(train), features, train_file)
-    #     print "exporting " + test_file + "..."
-    #     write_arff(build_data_set(test), features, test_file, True)
-    #     print "exporting " + gold_file + "..."
-    #     write_arff(build_data_set(test), features, test_file)
+    ###################### DATA SET ######################
 
-    #     # train_and_label(train_file, test_file)
-    #     i += 1
+    data = load_data(data_folder)
 
+    visual_features, visual_features_list = build_visual_features(data)
+    unigram_features, unigram_features_list = build_unigram_features(data, threshold)
 
-# Finds, filters and computes features
-def compute_tf_idf_features(data):
-    # computes TF
-    tfs = [arff_writer.tf(tokens) for tokens, label in data]
- 
-    # computes TF-IDF
-    tfs_idfs = [arff_writer.idf(atf, len(data)) for atf in tfs]
- 
-    global wt
-    
-    # filters features on TF-IDF threshold
-    tfs_idfs = arff_writer.filterOnLowTf(tfs_idfs, 0.4)
- 
-    labels = [label for tokens, label in data]
+    features_list = visual_features_list + unigram_features_list
 
-    return zip(tfs_idfs, labels)
+    data_set = merge_data(visual_features, unigram_features)
 
+    # for sid, feature_dic in data_set.iteritems():
+    #     print sid
+    #     for feature, value in feature_dic.iteritems():
+    #         print "\t" + sid + " " + feature + " " + str(value)
+    #     break;
 
-# Builds data sets
-def build_data_set(data):
-    data_set = []
-
-    for tokens, label, line_number in data:
-        sentence = " ".join(tokens)
-
-        data_set.append(([
-            line_number, # position
-            len(tokens), # number_of_tokens
-            len(sentence), # number_of_characters
-            sentence.count(">"), # number_of_quote_symbols
-            sum(map(len, tokens)) / float(len(tokens)), # average_token_length
-            sum(x.isupper() for x in sentence) / len(sentence), # proportion_of_uppercase_characters
-            sum(x.isalpha() for x in sentence) / len(sentence), # proportion_of_alphabetic_characters
-            sum(x.isnumeric() for x in sentence) / len(sentence) # proportion_of_numeric_characters
-        ], label))
-
-    return data_set
+    write_arff(data_set, features_list, arff_file)
 
 
 # Writes arff files
@@ -124,28 +79,161 @@ def write_arff(data, features, filename, test=False):
             out.write("@attribute " + feature + " " + feature_type + "\n")
 
         out.write("@attribute class {")
-        out.write(",".join(set([label for values, label in data])))
+        out.write(",".join(set([data[sid]["label"] for sid in data])))
         out.write("}\n\n")
- 
+
         # writes data
         out.write("@data\n")
 
-        for values, label in data:
-            for i, value in enumerate(values):
-                out.write(str(value))
-                if not i == len(values) - 1:
+        for sid in data:
+            for i, (feature, feature_type) in enumerate(features):
+                out.write(str(data[sid][feature]))
+
+                if not i == len(features) - 1:
                     out.write(",")
+
             if not test:
-                out.write("," + label + "\n")
-            else:
-                out.write("\n")
+                out.write("," + data[sid]["label"])
+
+            out.write("\n")
+
+
+# Merges two data sets
+def merge_data(base_set, added_set):
+    common_ids = [sid for sid in base_set if sid in added_set]
+
+    for sentence_id in common_ids:
+        base_set[sentence_id].update(added_set[sentence_id])
+
+    missing_ids = [sid for sid in base_set if sid not in added_set] + [sid for sid in added_set if sid not in base_set]
+
+    if len(missing_ids) > 0:
+        print "ERROR! Missing sentence ids in dataset:"
+        print missing_ids
+
+    return base_set
+
+
+# Builds a data set based on visual features
+def build_visual_features(data):
+    features = {}
+
+    features_list = [
+        ("position", "integer"),
+        ("number_of_tokens", "integer"),
+        ("number_of_characters", "integer"),
+        ("number_of_quote_symbols", "integer"),
+        ("average_token_length", "real"),
+        ("proportion_of_uppercase_characters", "real"),
+        ("proportion_of_alphabetic_characters", "real"),
+        ("proportion_of_numeric_characters", "real")
+    ]
+
+    for tokens, label, line_number in data:
+        sentence_id = hashlib.md5(" ".join(TextBlob(" ".join(tokens)).tokens)).hexdigest() # weirdly done but ensures ids are identical to those created in build_unigram_features()
+        features[sentence_id] = compute_visual_features(dict(features_list), tokens, line_number)
+        features[sentence_id]["label"] = label # label is included here (TODO this operation should be moved elsewhere)
+
+    return features, features_list
+
+
+# Computes visual features
+def compute_visual_features(vflist, tokens, line_number):
+    values = {}
+    sentence = " ".join(tokens)
+
+    if "position" in vflist:
+        values["position"] = line_number
+    if "number_of_tokens" in vflist:
+        values["number_of_tokens"] = len(tokens)
+    if "number_of_characters" in vflist:
+        values["number_of_characters"] = len(sentence)
+    if "number_of_quote_symbols" in vflist:
+        values["number_of_quote_symbols"] = sentence.count(">")
+    if "average_token_length" in vflist:
+        values["average_token_length"] = sum(map(len, tokens)) / float(len(tokens))
+    if "proportion_of_uppercase_characters" in vflist:
+        values["proportion_of_uppercase_characters"] = sum(x.isupper() for x in sentence) / len(sentence)
+    if "proportion_of_alphabetic_characters" in vflist:
+        values["proportion_of_alphabetic_characters"] = sum(x.isalpha() for x in sentence) / len(sentence)
+    if "proportion_of_numeric_characters" in vflist:
+        values["proportion_of_numeric_characters"] = sum(x.isdigit() for x in sentence) / len(sentence)
+
+    return values
+
+
+# Builds a dataset based on unigram features
+def build_unigram_features(data, threshold):
+    blob_list = [] # list of all text blob (one per sentence)
+    words = set([]) # set of all distinct words in corpus
+    n_containing = {} # for each word, number of documents containing it
+    idfs = {} # for each word, its inverse document frequency
+
+    # computing blob_list, words and n_containing
+    for tokens, label, line_number in data:
+        blob = TextBlob(" ".join(tokens))
+
+        for word in set(blob.tokens):
+            n_containing[word] = 1 if not word in n_containing else n_containing[word] + 1
+
+        words.update(blob.tokens)
+        blob_list.append(blob)
+
+    # computing idfs
+    for word in words:
+        idfs[word] = compute_idf(word, blob_list, n_containing)
+
+    return compute_unigram_features(blob_list, idfs, threshold)
+
+
+# Compute unigram features with TF-IDF weighting
+def compute_unigram_features(blob_list, idfs, threshold):
+    values = {}
+    features = set([])
+    
+    for blob in blob_list:
+        sentence_id = hashlib.md5(" ".join(blob.tokens)).hexdigest()
+        values[sentence_id] = {}
+
+        for word in blob.tokens:
+            tf_idf = compute_tf_idf(word, blob, idfs[word])
+
+            if tf_idf > threshold:
+                values[sentence_id][word] = tf_idf
+                features.update([word])
+    
+    for blob in blob_list:
+        sentence_id = hashlib.md5(" ".join(blob.tokens)).hexdigest()
+
+        for feature in features:
+            if not feature in values[sentence_id]:
+                values[sentence_id][feature] = 0
+
+    print(str(len(features)) + " tokens have been selected, out of " + str(len(idfs)))
+
+    return values, [(x, "float") for x in features]
+
+
+# Computes TF
+def compute_tf(word, blob):
+    return float(blob.tokens.count(word)) / len(blob.tokens)
+
+
+# Computes IDF
+def compute_idf(word, blob_list, n_containing):
+    return math.log(len(blob_list) / n_containing[word])
+
+
+# Computes TF-IDF
+def compute_tf_idf(word, blob, idf):
+    return compute_tf(word, blob) * idf
 
 
 # Loads data from tagged email files
 def load_data(folder):
     data = []
     for filename in os.listdir(folder):
-        for i, line in enumerate(tuple(codecs.open(folder + filename, "r", "UTF-8"))):
+        for i, line in enumerate(tuple(codecs.open(folder + filename, "r"))):
             line = line.strip()
             if not line.startswith("#"):
                 tokens = line.split()
@@ -156,127 +244,6 @@ def load_data(folder):
     return data
 
 
-# Generates K (train, test) pairs from the items in data.
-def generate_k_pairs(data, K,):
-    for k in xrange(K):
-        train = [x for i, x in enumerate(data) if i % K != k]
-        test = [x for i, x in enumerate(data) if i % K == k]
-
-        yield train, test
-
-
-# Trains a model on the training file and apply it on the test file to generate a result file
-def train_and_label(train_file, test_file):
-    model_file = train_file.replace("train", "model")
-    result_file = test_file.replace("test", "result")
-
-    print("wapiti train -a rprop -p " + PATTERN_FILE + " " + train_file + " " + model_file)
-    # training model
-    subprocess.call("wapiti train -a rprop -p " + PATTERN_FILE + " " + train_file + " " + model_file, stdout=open(os.devnull, 'wb'), stderr=open(os.devnull, 'wb'), shell=True)
-
-    print("wapiti label -m " + model_file + " -p " + test_file + " " + result_file)
-    # applying model on test data
-    subprocess.call("wapiti label -m " + model_file + " -p " + test_file + " " + result_file, stdout=open(os.devnull, 'wb'), stderr=open(os.devnull, 'wb'), shell=True)
-
-
-# Writes data to file
-def write_arff_file(data, filepath, test = False):
-    with codecs.open(filepath, "w") as data_file:
-        data_file.write("")
-        
-        for blob, features, label in data:
-
-            for i, feature in enumerate(features):
-                data_file.write(str(features[feature]))
-
-                if i != len(features) - 1:
-                    data_file.write("\t")
-
-            if not test:
-                data_file.write("\t" + label)
-
-            data_file.write("\n")
-
-
-# Deletes all files in the temp folder
-def clear_temp_folder():
-    for filename in os.listdir(TEMP_FOLDER):
-        filepath = os.path.join(TEMP_FOLDER, filename)
-        try:
-            if os.path.isfile(filepath):
-                os.unlink(filepath)
-        except Exception, e:
-            print e
-
-
-# Finds the best words to use as feature with TF-IDF
-def find_best_features(min_tf_idf):
-    blob_list = []
-    words = set([])
-    n_containing = {}
-    labels = {}
-
-    # here we read each tagged email file 
-    for filename in os.listdir(DATA_FOLDER):
-        for line in tuple(codecs.open(DATA_FOLDER + filename, "r", "UTF-8")):
-            line = line.strip()
-            if not line.startswith("#"):
-                tokens = line.split()
-                if len(tokens) > 0:
-                    label = tokens.pop(0)
-                    tokens = [x.lower() for x in tokens]
-                    blob = TextBlob(" ".join(tokens))
-                    labels[blob] = label
-                    for word in set(blob.words):
-                        if not word in n_containing:
-                            n_containing[word] = 1
-                        else:
-                            n_containing[word] += 1
-
-                    words.update(blob.words)
-                    blob_list.append(blob)
-
-    idfs = {}
-    for word in words:
-        idfs[word] = compute_idf(word, blob_list, n_containing)
-
-    scores = compute_scores(blob_list, idfs, min_tf_idf)
-
-    return [(blob, scores[blob], labels[blob]) for blob in scores]
-
-
-# Compute scores for each word in each blob with TF-IDF weighting
-def compute_scores(blob_list, idfs, min_tf_idf):
-    scores = {}
-    features = set([])
-    
-    for blob in blob_list:
-        scores[blob] = {}
-        for word in blob.words:
-            tf_idf = compute_tf_idf(word, blob, idfs[word])
-            if tf_idf > min_tf_idf:
-                scores[blob][word] = tf_idf
-                features.update([word])
-    
-    for blob in blob_list:
-        for feature in features:
-            if not feature in scores[blob]:
-                scores[blob][feature] = 0
-
-    return scores
-
-# Computes TF
-def compute_tf(word, blob):
-    return blob.words.count(word) / len(blob.words)
-
-# Computes IDF
-def compute_idf(word, blob_list, n_containing):
-    return math.log(len(blob_list) / n_containing[word])
-
-# Computes TF-IDF
-def compute_tf_idf(word, blob, idf):
-    return compute_tf(word, blob) * idf
-
 # Launch
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main(sys.argv)
