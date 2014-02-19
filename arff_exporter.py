@@ -1,9 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 
 """
 :Name:
-    arff_exporter.py
+    dataset_builder.py
 
 :Authors:
     Soufian Salim (soufi@nsal.im)
@@ -12,24 +12,248 @@
     february 13, 2014 (creation)
 
 :Description:
-    Converts tagged emails as outputted by the LINA email-analyzer project into valid Weka datasets (.arff files)
+    Extract features from tagged emails as outputted by the LINA email-analyzer project and converts them into valid Weka datasets (.arff files)
     (see https://github.com/bolaft/email-analyzer)
 """
 
 from text.blob import TextBlob
+from progressbar import ProgressBar
 
 import math
 import sys
 import codecs
 import os
 import hashlib
+import re
+import time
+
+
+# Constants
+
+visual_feature_list = [
+    ("position", "integer"),
+    ("number_of_tokens", "integer"),
+    ("number_of_characters", "integer"),
+    ("number_of_quote_symbols", "integer"),
+    ("average_token_length", "real"),
+    ("proportion_of_uppercase_characters", "real"),
+    ("proportion_of_alphabetic_characters", "real"),
+    ("proportion_of_numeric_characters", "real")
+]
 
 # Main
 def main(argv):
-    ######################## ARGS ########################
+    data_folder, ngram_file, arff_file = process_argv(argv)
+
+    # dataset structure:
+    # 
+    # {"7aa6b6e69f16a93101bc51832f331b1f": {
+    #   "features": {
+    #       "abc": 0.156, "xyz": "FALSE"...
+    #   }, "label": "BE" }, ... }}
     
-    if len(argv) != 5:
-        print("Usage: " + argv[0] + " <data folder> <ngram file> <arff file> <TF-IDF threshold>")
+    dataset = {} 
+
+    # feature_list structure:
+    # 
+    # [("abc", "real"), ("xyz", "{TRUE, FALSE}"), ...]
+
+    feature_list = [] + visual_feature_list
+
+    # data structure:
+    # 
+    # [("B", ["token", "tnkoe", "ekotn", ...], 1), ...]
+
+    data = load_data(data_folder)
+
+    # features structure:
+    # 
+    # {"abc": 0.156, "xyz": "FALSE"...}
+
+    features = {}
+
+    # building dataset
+    
+    print("selecting features...")
+
+    blobs = [] # list of all text blob (one per sentence)
+    ngrams = set([]) # set of all distinct ngrams in corpus
+    n_containing = {} # for each word, number of documents containing it
+
+    progress = ProgressBar(maxval=len(data)*2).start()
+
+    ################################################################################
+    
+    for i, (tokens, label, line_number) in enumerate(data):
+        sentence = " ".join(tokens)
+
+        # building visual features
+
+        features.update(build_visual_features(dict(visual_feature_list), sentence, tokens, line_number))
+
+        # preprocessing for ngram features
+
+        blob = TextBlob(sentence)
+        blob_ngrams = tokens + extract_bigrams(blob)
+
+        for ngram in set(blob_ngrams):
+            if not ngram in n_containing:
+                n_containing[ngram] = 1
+            else:
+                n_containing[ngram] += 1
+
+        ngrams.update(blob_ngrams)
+        blobs.append(blob)
+
+        sid = make_sid(blob)
+
+        dataset[sid] = {}
+        dataset[sid]["label"] = label
+        dataset[sid]["features"] = features
+
+        progress.update(i)
+
+    #################################################################################
+    
+    nb = len(ngrams) / 100
+    threshold = 0
+    best_scores = []
+    best_ngrams = []
+
+    for i, blob in enumerate(blobs):
+        sid = make_sid(blob)
+
+        for ngram in tokens + extract_bigrams(blob):
+            tf = float(" ".join(blob.tokens).count(ngram)) / len(blob.tokens)
+            idf = math.log(len(blobs) / n_containing[ngram])
+            tf_idf = tf * idf
+
+            if (len(best_scores) < nb or tf_idf >= threshold) and ngram not in best_ngrams:
+                best_ngrams.append(ngram)
+                best_scores.append((ngram, tf_idf))
+                best_scores = sorted(best_scores, key=lambda x: x[1], reverse=True)
+
+                if len(best_scores) >= nb:
+                    popped_ngram, popped_score = best_scores.pop()
+                    best_ngrams.remove(popped_ngram)
+
+                best_ngram, threshold = best_scores[0]
+
+                dataset[sid]["features"][ngram] = tf_idf
+
+        progress.update(i + len(data))
+    
+    for ngram, tf_idf in best_scores:
+        feature_list.append((ngram, "real"))
+
+    #################################################################################
+
+    progress.finish()
+
+    # writing arff file
+    
+    print("compiling and exporting data to " + arff_file + "...")
+
+    write_arff(dataset, set(feature_list), arff_file)
+
+    print("export successful")
+
+
+# Makes sentence id from blob
+def make_sid(blob):
+    return hashlib.md5(" ".join(blob.tokens)).hexdigest()
+
+
+# Extracts bigrams from a blob
+def extract_bigrams(blob):
+    l = [x + " " + y for x, y in zip(blob.tokens, blob.tokens[1:])]
+    return [x.encode("utf-8") for x in l]
+
+
+# Builds visual features
+def build_visual_features(visual_feature_list, sentence, tokens, line_number):
+    values = {}
+
+    if "position" in visual_feature_list:
+        values["position"] = line_number
+    if "number_of_tokens" in visual_feature_list:
+        values["number_of_tokens"] = len(tokens)
+    if "number_of_characters" in visual_feature_list:
+        values["number_of_characters"] = len(sentence)
+    if "number_of_quote_symbols" in visual_feature_list:
+        values["number_of_quote_symbols"] = sentence.count(">")
+    if "average_token_length" in visual_feature_list:
+        values["average_token_length"] = sum(map(len, tokens)) / float(len(tokens))
+    if "proportion_of_uppercase_characters" in visual_feature_list:
+        values["proportion_of_uppercase_characters"] = sum(x.isupper() for x in sentence) / len(sentence)
+    if "proportion_of_alphabetic_characters" in visual_feature_list:
+        values["proportion_of_alphabetic_characters"] = sum(x.isalpha() for x in sentence) / len(sentence)
+    if "proportion_of_numeric_characters" in visual_feature_list:
+        values["proportion_of_numeric_characters"] = sum(x.isdigit() for x in sentence) / len(sentence)
+
+    return values
+        
+
+# Writes arff files
+def write_arff(dataset, feature_list, filename, test=False):
+    with codecs.open(filename, "w", "UTF-8") as out:
+        # writes header
+        out.write("@relation " + filename.replace(".arff", "").replace(".", "-") + "\n\n")
+
+        for i, (feature, feature_type) in enumerate(feature_list):
+            attribute_name = feature if (feature, feature_type) in visual_feature_list else "ngram_" + str(i)
+            out.write("@attribute " + attribute_name + " " + feature_type + "\n")
+
+        out.write("@attribute class {")
+        out.write(",".join(set([dataset[sid]["label"] for sid in dataset])))
+        out.write("}\n\n")
+
+        # writes data
+        out.write("@data\n")
+
+        progress = ProgressBar()
+
+        for sid in progress(dataset):
+            for i, (feature, feature_type) in enumerate(feature_list):
+                out.write(str(dataset[sid]["features"][feature]))
+
+                if not i == len(feature_list) - 1:
+                    out.write(",")
+
+            if not test:
+                out.write("," + dataset[sid]["label"])
+
+            out.write("\n")
+
+
+# Replaces special chars from a string
+def replace_special_chars(str, replace):
+    return re.sub("[^0-9a-zA-Z]+", replace, str)
+
+
+# Loads data from tagged email files
+def load_data(folder):
+    data = []
+
+    print("loading data from " + folder + "...")
+
+    progress = ProgressBar()
+
+    for filename in progress(os.listdir(folder)):
+        for i, line in enumerate(tuple(codecs.open(folder + filename, "r"))):
+            line = line.strip()
+            if not line.startswith("#"):
+                tokens = line.split()
+                if len(tokens) > 1:
+                    label = tokens.pop(0)
+                    data.append((tokens, label, i))
+
+    return data
+
+# Process argv
+def process_argv(argv):
+    if len(argv) != 4:
+        print("Usage: " + argv[0] + " <data folder> <ngram file> <arff file>")
         sys.exit()
 
     # adding a "/" to the dirpath if not present
@@ -46,251 +270,10 @@ def main(argv):
     if not os.path.isfile(ngram_file):
         sys.exit(ngram_file + " is not a file")
 
-    if not os.access(os.path.dirname(arff_file), os.W_OK):
-        sys.exit(arff_file + " is not accessible")
+    if not os.access(os.path.dirname(arff_file), os.W_OK) or os.path.isdir(arff_file):
+        sys.exit(arff_file + " is not writable as a file")
 
-    try:
-        threshold = float(argv[4])
-    except:
-        sys.exit(argv[4] + " is not a floating number")
-
-    ###################### DATA SET ######################
-
-    print("loading data from " + data_folder + "...")
-
-    data = load_data(data_folder)
-
-    print("building visual features...")
-    visual_features, visual_features_list = build_visual_features(data)
-    print("building unigram features, with TF-IDF threshold of " + str(threshold) + "...")
-    unigram_features, unigram_features_list = build_unigram_features(data, threshold)
-    print("building ngram features, from " + ngram_file + "...")
-    ngram_features, ngram_features_list = build_ngram_features(data, ngram_file)
-
-    features_list = visual_features_list + unigram_features_list + ngram_features_list
-    
-    data_set = merge_data(merge_data(visual_features, unigram_features), ngram_features)
-
-    # for sid, feature_dic in data_set.iteritems():
-    #     print sid
-    #     for feature, value in feature_dic.iteritems():
-    #         print "\t" + sid + " " + feature + " " + str(value)
-    #     break;
-
-    print("writing to " + arff_file + "...")
-
-    write_arff(data_set, features_list, arff_file)
-
-    print("export successful")
-    print("total features: " + str(len(features_list)) + " (visual: " + str(len(visual_features_list)) + ", unigrams: " + str(len(unigram_features_list)) + ", ngrams: " + str(len(ngram_features_list)) + ")")
-
-
-# Writes arff files
-def write_arff(data, features, filename, test=False): 
-    with codecs.open(filename, "w", "UTF-8") as out:
-        # writes header
-        out.write("@relation " + filename.replace(".arff", "").replace(".", "-") + "\n\n")
-
-        for feature, feature_type in features:
-            out.write("@attribute " + feature + " " + feature_type + "\n")
-
-        out.write("@attribute class {")
-        out.write(",".join(set([data[sid]["label"] for sid in data])))
-        out.write("}\n\n")
-
-        # writes data
-        out.write("@data\n")
-
-        for sid in data:
-            for i, (feature, feature_type) in enumerate(features):
-                out.write(str(data[sid][feature]))
-
-                if not i == len(features) - 1:
-                    out.write(",")
-
-            if not test:
-                out.write("," + data[sid]["label"])
-
-            out.write("\n")
-
-
-# Merges two data sets
-def merge_data(base_set, added_set):
-    common_ids = [sid for sid in base_set if sid in added_set]
-
-    for sentence_id in common_ids:
-        base_set[sentence_id].update(added_set[sentence_id])
-
-    missing_ids = [sid for sid in base_set if sid not in added_set] + [sid for sid in added_set if sid not in base_set]
-
-    if len(missing_ids) > 0:
-        print "ERROR! Missing sentence ids in dataset:"
-        print missing_ids
-
-    return base_set
-
-
-# Builds a data set based on visual features
-def build_visual_features(data):
-    features = {}
-
-    features_list = [
-        ("position", "integer"),
-        ("number_of_tokens", "integer"),
-        ("number_of_characters", "integer"),
-        ("number_of_quote_symbols", "integer"),
-        ("average_token_length", "real"),
-        ("proportion_of_uppercase_characters", "real"),
-        ("proportion_of_alphabetic_characters", "real"),
-        ("proportion_of_numeric_characters", "real")
-    ]
-
-    for tokens, label, line_number in data:
-        sentence_id = make_id_from_tokens(tokens)
-        features[sentence_id] = compute_visual_features(dict(features_list), tokens, line_number)
-        features[sentence_id]["label"] = label # label is included here (TODO this operation should be moved elsewhere)
-
-    return features, features_list
-
-
-# Computes visual features
-def compute_visual_features(vflist, tokens, line_number):
-    values = {}
-    sentence = " ".join(tokens)
-
-    if "position" in vflist:
-        values["position"] = line_number
-    if "number_of_tokens" in vflist:
-        values["number_of_tokens"] = len(tokens)
-    if "number_of_characters" in vflist:
-        values["number_of_characters"] = len(sentence)
-    if "number_of_quote_symbols" in vflist:
-        values["number_of_quote_symbols"] = sentence.count(">")
-    if "average_token_length" in vflist:
-        values["average_token_length"] = sum(map(len, tokens)) / float(len(tokens))
-    if "proportion_of_uppercase_characters" in vflist:
-        values["proportion_of_uppercase_characters"] = sum(x.isupper() for x in sentence) / len(sentence)
-    if "proportion_of_alphabetic_characters" in vflist:
-        values["proportion_of_alphabetic_characters"] = sum(x.isalpha() for x in sentence) / len(sentence)
-    if "proportion_of_numeric_characters" in vflist:
-        values["proportion_of_numeric_characters"] = sum(x.isdigit() for x in sentence) / len(sentence)
-
-    return values
-
-
-# Builds a dataset based on unigram features
-def build_unigram_features(data, threshold):
-    blob_list = [] # list of all text blob (one per sentence)
-    words = set([]) # set of all distinct words in corpus
-    n_containing = {} # for each word, number of documents containing it
-    idfs = {} # for each word, its inverse document frequency
-
-    # computing blob_list, words and n_containing
-    for tokens, label, line_number in data:
-        blob = TextBlob(" ".join(tokens))
-
-        for word in set(blob.tokens):
-            n_containing[word] = 1 if not word in n_containing else n_containing[word] + 1
-
-        words.update(blob.tokens)
-        blob_list.append(blob)
-
-    # computing idfs
-    for word in words:
-        idfs[word] = compute_idf(word, blob_list, n_containing)
-
-    return compute_unigram_features(blob_list, idfs, threshold)
-
-
-# Compute unigram features with TF-IDF weighting
-def compute_unigram_features(blob_list, idfs, threshold):
-    values = {}
-    features = set([])
-    
-    for blob in blob_list:
-        sentence_id = hashlib.md5(" ".join(blob.tokens)).hexdigest()
-        values[sentence_id] = {}
-
-        for word in blob.tokens:
-            tf_idf = compute_tf_idf(word, blob, idfs[word])
-
-            if tf_idf > threshold:
-                values[sentence_id][word] = tf_idf
-                features.update([word])
-    
-    for blob in blob_list:
-        sentence_id = make_id_from_tokens(blob.tokens)
-
-        for feature in features:
-            if not feature in values[sentence_id]:
-                values[sentence_id][feature] = 0
-
-    return values, [(x, "real") for x in features]
-
-
-# Builds a dataset based on the ngram list
-def build_ngram_features(data, ngram_file):
-    features = [line for line in tuple(codecs.open(ngram_file, "r"))]
-    values = {}
-
-    for tokens, label, line_number in data:
-        sentence_id = make_id_from_tokens(tokens)
-        values[sentence_id] = {}
-
-        for i, feature in enumerate(features):
-            values[sentence_id]["ngram-" + str(i)] = "TRUE" if contains(tokens, feature.split()) else "FALSE"
-
-    return values, [("ngram-" + str(i), "{TRUE,FALSE}") for i in xrange(len(features))]
-
-
-# Computes TF
-def compute_tf(word, blob):
-    return float(blob.tokens.count(word)) / len(blob.tokens)
-
-
-# Computes IDF
-def compute_idf(word, blob_list, n_containing):
-    return math.log(len(blob_list) / n_containing[word])
-
-
-# Computes TF-IDF
-def compute_tf_idf(word, blob, idf):
-    return compute_tf(word, blob) * idf
-
-
-# Loads data from tagged email files
-def load_data(folder):
-    data = []
-
-    for filename in os.listdir(folder):
-        for i, line in enumerate(tuple(codecs.open(folder + filename, "r"))):
-            line = line.strip()
-            if not line.startswith("#"):
-                tokens = line.split()
-                if len(tokens) > 1:
-                    label = tokens.pop(0)
-                    data.append((tokens, label, i))
-
-    return data
-
-
-# Checks if a list contains another
-def contains(big, small):
-    for i in xrange(len(big) - len(small) + 1):
-        for j in xrange(len(small)):
-            if big[i + j] != small[j]:
-                break
-        else:
-            return i, i + len(small)
-
-    return False
-
-
-# Builds an id string from a list of tokens
-def make_id_from_tokens(tokens):
-    # weirdly done but ensures ids are identical to those created in build_unigram_features()
-    return hashlib.md5(" ".join(TextBlob(" ".join(tokens)).tokens)).hexdigest()
-
+    return data_folder, ngram_file, arff_file
 
 # Launch
 if __name__ == "__main__":
