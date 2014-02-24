@@ -25,7 +25,7 @@ import codecs
 import os
 import hashlib
 import re
-import time
+import operator
 
 
 # Constants
@@ -45,6 +45,12 @@ visual_feature_list = [
 def main(argv):
     data_folder, ngram_file, arff_file = process_argv(argv)
 
+    # reading imposed ngram list
+    
+    imposed_ngrams = [ngram.strip() for ngram in tuple(codecs.open(ngram_file, "r"))]
+
+    imposed_ngrams_feature_list = [(ngram, "integer") for ngram in imposed_ngrams]
+
     # dataset structure:
     # 
     # {"7aa6b6e69f16a93101bc51832f331b1f": {
@@ -58,38 +64,38 @@ def main(argv):
     # 
     # [("abc", "real"), ("xyz", "{TRUE, FALSE}"), ...]
 
-    feature_list = [] + visual_feature_list
+    feature_list = [] + visual_feature_list + imposed_ngrams_feature_list
 
     # data structure:
     # 
     # [("B", ["token", "tnkoe", "ekotn", ...], 1), ...]
 
-    data = load_data(data_folder)
-
-    # features structure:
-    # 
-    # {"abc": 0.156, "xyz": "FALSE"...}
-
-    features = {}
+    data = load_data(data_folder, filter_i=True)
 
     # building dataset
     
-    print("selecting features...")
+    print("preprocessing...")
 
     blobs = [] # list of all text blob (one per sentence)
     ngrams = set([]) # set of all distinct ngrams in corpus
     n_containing = {} # for each word, number of documents containing it
 
-    progress = ProgressBar(maxval=len(data)*2).start()
+    progress = ProgressBar()
 
     ################################################################################
     
-    for i, (tokens, label, line_number) in enumerate(data):
+    for i, (tokens, label, line_number) in enumerate(progress(data)):
+        features = {}
         sentence = " ".join(tokens)
 
         # building visual features
 
         features.update(build_visual_features(dict(visual_feature_list), sentence, tokens, line_number))
+        
+        for imposed_ngram in imposed_ngrams:
+            features[imposed_ngram] = sentence.count(imposed_ngram)
+            print imposed_ngram
+            print features[imposed_ngram]
 
         # preprocessing for ngram features
 
@@ -111,16 +117,15 @@ def main(argv):
         dataset[sid]["label"] = label
         dataset[sid]["features"] = features
 
-        progress.update(i)
-
     #################################################################################
     
-    nb = len(ngrams) / 100
-    threshold = 0
-    best_scores = []
-    best_ngrams = []
+    print("selecting features...")
 
-    for i, blob in enumerate(blobs):
+    best_scores = {}
+
+    progress = ProgressBar()
+
+    for i, blob in enumerate(progress(blobs)):
         sid = make_sid(blob)
 
         for ngram in tokens + extract_bigrams(blob):
@@ -128,27 +133,17 @@ def main(argv):
             idf = math.log(len(blobs) / n_containing[ngram])
             tf_idf = tf * idf
 
-            if (len(best_scores) < nb or tf_idf >= threshold) and ngram not in best_ngrams:
-                best_ngrams.append(ngram)
-                best_scores.append((ngram, tf_idf))
-                best_scores = sorted(best_scores, key=lambda x: x[1], reverse=True)
+            dataset[sid]["features"][ngram] = tf_idf
 
-                if len(best_scores) >= nb:
-                    popped_ngram, popped_score = best_scores.pop()
-                    best_ngrams.remove(popped_ngram)
-
-                best_ngram, threshold = best_scores[0]
-
-                dataset[sid]["features"][ngram] = tf_idf
-
-        progress.update(i + len(data))
+            if not ngram in best_scores or best_scores[ngram] < tf_idf:
+                best_scores[ngram] = tf_idf
     
-    for ngram, tf_idf in best_scores:
+    sorted_scores = sorted(best_scores.iteritems(), key=operator.itemgetter(1)) # sorting scores by order of tf_idf
+    
+    for ngram, best_tf_idf in sorted_scores[:len(ngrams) / 1000]: # keeping only the best 0.1%
         feature_list.append((ngram, "real"))
 
     #################################################################################
-
-    progress.finish()
 
     # writing arff file
     
@@ -185,11 +180,11 @@ def build_visual_features(visual_feature_list, sentence, tokens, line_number):
     if "average_token_length" in visual_feature_list:
         values["average_token_length"] = sum(map(len, tokens)) / float(len(tokens))
     if "proportion_of_uppercase_characters" in visual_feature_list:
-        values["proportion_of_uppercase_characters"] = sum(x.isupper() for x in sentence) / len(sentence)
+        values["proportion_of_uppercase_characters"] = float(sum(x.isupper() for x in sentence)) / len(sentence)
     if "proportion_of_alphabetic_characters" in visual_feature_list:
-        values["proportion_of_alphabetic_characters"] = sum(x.isalpha() for x in sentence) / len(sentence)
+        values["proportion_of_alphabetic_characters"] = float(sum(x.isalpha() for x in sentence)) / len(sentence)
     if "proportion_of_numeric_characters" in visual_feature_list:
-        values["proportion_of_numeric_characters"] = sum(x.isdigit() for x in sentence) / len(sentence)
+        values["proportion_of_numeric_characters"] = float(sum(x.isdigit() for x in sentence)) / len(sentence)
 
     return values
         
@@ -215,7 +210,7 @@ def write_arff(dataset, feature_list, filename, test=False):
 
         for sid in progress(dataset):
             for i, (feature, feature_type) in enumerate(feature_list):
-                out.write(str(dataset[sid]["features"][feature]))
+                out.write(str(dataset[sid]["features"][feature]) if feature in dataset[sid]["features"] else "0.0")
 
                 if not i == len(feature_list) - 1:
                     out.write(",")
@@ -232,7 +227,7 @@ def replace_special_chars(str, replace):
 
 
 # Loads data from tagged email files
-def load_data(folder):
+def load_data(folder, filter_i=False):
     data = []
 
     print("loading data from " + folder + "...")
@@ -240,20 +235,23 @@ def load_data(folder):
     progress = ProgressBar()
 
     for filename in progress(os.listdir(folder)):
+        prev_label = None
         for i, line in enumerate(tuple(codecs.open(folder + filename, "r"))):
             line = line.strip()
             if not line.startswith("#"):
                 tokens = line.split()
                 if len(tokens) > 1:
                     label = tokens.pop(0)
-                    data.append((tokens, label, i))
+                    if not filter_i or label != "I" or prev_label != "I": # filters out consecutive "I" labelled sentences
+                        data.append((tokens, label, i))
+                    prev_label = label
 
     return data
 
 # Process argv
 def process_argv(argv):
     if len(argv) != 4:
-        print("Usage: " + argv[0] + " <data folder> <ngram file> <arff file>")
+        print("Usage: ./" + argv[0] + " <data folder> <ngram file> <arff file>")
         sys.exit()
 
     # adding a "/" to the dirpath if not present
@@ -274,6 +272,7 @@ def process_argv(argv):
         sys.exit(arff_file + " is not writable as a file")
 
     return data_folder, ngram_file, arff_file
+
 
 # Launch
 if __name__ == "__main__":

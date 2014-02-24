@@ -1,0 +1,287 @@
+										NBPN		J48			BN
+ubuntu-fr 								42.90%		51.90%		53.00%
+ubuntu-fr w/o consecutive I				28.50%		37.90%		40.40%
+ubuntu-users (first 50k instances)		36.20%		55.00%		56.40%
+
+==========================
+test_no_filter_en_50k.arff
+==========================
+
+# NaiveBayesMultinomial #
+
+=== Summary ===
+
+Correctly Classified Instances       16342               33.2121 %
+Incorrectly Classified Instances     32863               66.7879 %
+Kappa statistic                          0.1127
+Mean absolute error                      0.3413
+Root mean squared error                  0.4988
+Relative absolute error                110.9333 %
+Root relative squared error            127.1809 %
+Total Number of Instances            49205     
+
+=== Detailed Accuracy By Class ===
+
+               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
+                 0.325     0.138      0.751     0.325     0.453      0.628    I
+                 0.461     0.253      0.154     0.461     0.231      0.655    BE
+                 0.432     0.33       0.226     0.432     0.296      0.596    B
+                 0.178     0.129      0.214     0.178     0.194      0.555    E
+Weighted Avg.    0.332     0.182      0.512     0.332     0.362      0.613
+
+=== Confusion Matrix ===
+
+    a    b    c    d   <-- classified as
+ 8980 5328 9516 3843 |    a = I
+  521 2054 1349  536 |    b = BE
+ 1092 3055 3863  935 |    c = B
+ 1369 2917 2402 1445 |    d = E
+
+# BayesNet #
+
+=== Summary ===
+
+Correctly Classified Instances       28468               57.8559 %
+Incorrectly Classified Instances     20737               42.1441 %
+Kappa statistic                          0.2815
+Mean absolute error                      0.2504
+Root mean squared error                  0.3719
+Relative absolute error                 81.4077 %
+Root relative squared error             94.8229 %
+Total Number of Instances            49205     
+
+=== Detailed Accuracy By Class ===
+
+               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
+                 0.775     0.435      0.696     0.775     0.733      0.754    I
+                 0.095     0.016      0.367     0.095     0.151      0.722    BE
+                 0.323     0.031      0.696     0.323     0.441      0.73     B
+                 0.457     0.228      0.284     0.457     0.35       0.698    E
+Weighted Avg.    0.579     0.289      0.598     0.579     0.564      0.737
+
+=== Confusion Matrix ===
+
+     a     b     c     d   <-- classified as
+ 21435    53   447  5732 |     a = I
+  1623   423   696  1718 |     b = BE
+  3470   654  2891  1930 |     c = B
+  4271    24   119  3719 |     d = E
+
+# J48 #
+
+=== Summary ===
+
+Correctly Classified Instances       29634               60.2256 %
+Incorrectly Classified Instances     19571               39.7744 %
+Kappa statistic                          0.2516
+Mean absolute error                      0.2474
+Root mean squared error                  0.3852
+Relative absolute error                 80.421  %
+Root relative squared error             98.2083 %
+Total Number of Instances            49205     
+
+=== Detailed Accuracy By Class ===
+
+               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
+                 0.887     0.606      0.653     0.887     0.752      0.729    I
+                 0.059     0.028      0.175     0.059     0.088      0.653    BE
+                 0.412     0.065      0.584     0.412     0.484      0.713    B
+                 0.14      0.064      0.301     0.14      0.191      0.64     E
+Weighted Avg.    0.602     0.366      0.539     0.602     0.55       0.704
+
+=== Confusion Matrix ===
+
+     a     b     c     d   <-- classified as
+ 24546   572   953  1596 |     a = I
+  2511   262  1207   480 |     b = BE
+  4361   323  3688   573 |     c = B
+  6189   344   462  1138 |     d = E
+
+===================
+test_no_filter.arff           
+===================
+
+# NaiveBayesMultinomial #
+
+=== Summary ===
+
+Correctly Classified Instances        2458               41.5273 %
+Incorrectly Classified Instances      3461               58.4727 %
+Kappa statistic                          0.1652
+Mean absolute error                      0.298 
+Root mean squared error                  0.4829
+Relative absolute error                 93.6833 %
+Root relative squared error            121.0846 %
+Total Number of Instances             5919     
+
+=== Detailed Accuracy By Class ===
+
+               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
+                 0.529     0.241      0.719     0.529     0.609      0.678    I
+                 0.596     0.292      0.205     0.596     0.305      0.714    BE
+                 0.267     0.189      0.241     0.267     0.253      0.598    B
+                 0.09      0.072      0.198     0.09      0.124      0.552    E
+Weighted Avg.    0.415     0.209      0.487     0.415     0.429      0.647
+
+=== Confusion Matrix ===
+
+    a    b    c    d   <-- classified as
+ 1685  685  557  261 |    a = I
+   92  395  144   32 |    b = BE
+  245  489  290   64 |    c = B
+  322  360  210   88 |    d = E
+
+# BayesNet #
+
+=== Summary ===
+
+Correctly Classified Instances        3348               56.5636 %
+Incorrectly Classified Instances      2571               43.4364 %
+Kappa statistic                          0.2427
+Mean absolute error                      0.2646
+Root mean squared error                  0.3722
+Relative absolute error                 83.1615 %
+Root relative squared error             93.3409 %
+Total Number of Instances             5919     
+
+=== Detailed Accuracy By Class ===
+
+               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
+                 0.854     0.544      0.647     0.854     0.736      0.752    I
+                 0.241     0.09       0.252     0.241     0.247      0.746    BE
+                 0.26      0.028      0.674     0.26      0.375      0.721    B
+                 0.185     0.096      0.277     0.185     0.222      0.686    E
+Weighted Avg.    0.566     0.324      0.546     0.566     0.53       0.735
+
+=== Confusion Matrix ===
+
+    a    b    c    d   <-- classified as
+ 2724  168   30  266 |    a = I
+  285  160  102  116 |    b = BE
+  515  199  283   91 |    c = B
+  686  108    5  181 |    d = E
+
+# J48 #
+
+=== Summary ===
+
+Correctly Classified Instances        3341               56.4453 %
+Incorrectly Classified Instances      2578               43.5547 %
+Kappa statistic                          0.2371
+Mean absolute error                      0.2616
+Root mean squared error                  0.408 
+Relative absolute error                 82.223  %
+Root relative squared error            102.314  %
+Total Number of Instances             5919     
+
+=== Detailed Accuracy By Class ===
+
+               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
+                 0.84      0.547      0.642     0.84      0.728      0.703    I
+                 0.066     0.043      0.164     0.066     0.095      0.643    BE
+                 0.439     0.1        0.496     0.439     0.466      0.675    B
+                 0.144     0.076      0.274     0.144     0.189      0.616    E
+Weighted Avg.    0.564     0.331      0.501     0.564     0.519      0.676
+
+=== Confusion Matrix ===
+
+    a    b    c    d   <-- classified as
+ 2678  129  162  219 |    a = I
+  304   44  245   70 |    b = BE
+  481   44  478   85 |    c = B
+  710   51   78  141 |    d = E
+
+=========
+test.arff           
+=========
+
+# J48 #
+
+=== Summary ===
+
+Correctly Classified Instances        1349               39.6765 %
+Incorrectly Classified Instances      2051               60.3235 %
+Kappa statistic                          0.1681
+Mean absolute error                      0.3247
+Root mean squared error                  0.4705
+Relative absolute error                 88.2257 %
+Root relative squared error            109.687  %
+Total Number of Instances             3400     
+
+=== Detailed Accuracy By Class ===
+
+               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
+                 0.318     0.158      0.317     0.318     0.317      0.634    I
+                 0.086     0.091      0.186     0.086     0.117      0.593    BE
+                 0.527     0.246      0.505     0.527     0.516      0.627    B
+                 0.51      0.332      0.391     0.51      0.443      0.626    E
+Weighted Avg.    0.397     0.225      0.374     0.397     0.379      0.621
+
+=== Confusion Matrix ===
+
+   a   b   c   d   <-- classified as
+ 203  61  93 282 |   a = I
+ 103  57 306 198 |   b = BE
+ 117  84 578 317 |   c = B
+ 217 105 168 511 |   d = E
+
+# BayesNet #
+
+=== Summary ===
+
+Correctly Classified Instances        1434               42.1765 %
+Incorrectly Classified Instances      1966               57.8235 %
+Kappa statistic                          0.2026
+Mean absolute error                      0.3218
+Root mean squared error                  0.4094
+Relative absolute error                 87.4629 %
+Root relative squared error             95.4344 %
+Total Number of Instances             3400     
+
+=== Detailed Accuracy By Class ===
+
+               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
+                 0.343     0.112      0.416     0.343     0.376      0.699    I
+                 0.14      0.083      0.29      0.14      0.189      0.657    BE
+                 0.401     0.144      0.57      0.401     0.471      0.704    B
+                 0.682     0.458      0.383     0.682     0.491      0.675    E
+Weighted Avg.    0.422     0.218      0.431     0.422     0.404      0.685
+
+=== Confusion Matrix ===
+
+   a   b   c   d   <-- classified as
+ 219  38  59 323 |   a = I
+  71  93 172 328 |   b = BE
+  77 132 439 448 |   c = B
+ 160  58 100 683 |   d = E
+
+ # NaiveBayesMultinomial #
+
+ === Summary ===
+
+Correctly Classified Instances        1093               32.1471 %
+Incorrectly Classified Instances      2307               67.8529 %
+Kappa statistic                          0.0876
+Mean absolute error                      0.3512
+Root mean squared error                  0.5014
+Relative absolute error                 95.4471 %
+Root relative squared error            116.8995 %
+Total Number of Instances             3400     
+
+=== Detailed Accuracy By Class ===
+
+               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
+                 0.002     0.002      0.143     0.002     0.003      0.538    I
+                 0.598     0.412      0.26      0.598     0.363      0.627    BE
+                 0.255     0.229      0.346     0.255     0.293      0.528    B
+                 0.416     0.269      0.392     0.416     0.403      0.58     E
+Weighted Avg.    0.321     0.234      0.305     0.321     0.285      0.565
+
+=== Confusion Matrix ===
+
+   a   b   c   d   <-- classified as
+   1 256 166 216 |   a = I
+   0 397 147 120 |   b = BE
+   2 505 279 310 |   c = B
+   4 367 214 416 |   d = E
+
