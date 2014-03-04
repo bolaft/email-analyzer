@@ -51,7 +51,7 @@ def main(argv):
         sentence = " ".join(tokens)
 
         blob = TextBlob(sentence)
-        blob_ngrams = tokens + extract_bigrams(blob)
+        blob_ngrams = blob.tokens + extract_bigrams(blob)
 
         for ngram in set(blob_ngrams):
             if not ngram in n_containing:
@@ -87,7 +87,8 @@ def main(argv):
 
     #################################################################################
 
-    print(selected_features)
+    for feat in selected_features:
+        print(feat.decode("utf-8"))
 
 
 # Makes sentence id from blob
@@ -97,8 +98,7 @@ def make_sid(blob):
 
 # Extracts bigrams from a blob
 def extract_bigrams(blob):
-    l = [x + " " + y for x, y in zip(blob.tokens, blob.tokens[1:])]
-    return [x.encode("utf-8") for x in l]
+    return [x + " " + y for x, y in zip(blob.tokens, blob.tokens[1:])]
 
 
 # Loads data from tagged email files
@@ -112,7 +112,7 @@ def load_data(folder, max_lines):
     ln = 0
 
     for filename in os.listdir(folder):
-        for i, line in enumerate(tuple(codecs.open(folder + filename, "r"))):
+        for i, line in enumerate(tuple(codecs.open(folder + filename, "r", "utf-8"))):
             line = line.strip()
             if not line.startswith("#"):
                 tokens = line.split()
@@ -123,7 +123,7 @@ def load_data(folder, max_lines):
                         data[label] = []
 
                     for token in tokens:
-                        data[label].append(token.decode("UTF-8"))
+                        data[label].append(token)
                     
                     ln += 1
                     if ln < max_lines:

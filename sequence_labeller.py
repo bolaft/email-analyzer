@@ -42,10 +42,8 @@ MALLET_DATA_FOLDER = "var/mallet/"
 def main(argv):
     source_folder = process_argv(argv)
 
-    # make_mallet_data(source_folder)
-
-    # print("Converting %s to wapiti datafiles..." % source_folder)
-    # make_datafiles(source_folder)
+    print("Converting %s to wapiti datafiles..." % source_folder)
+    make_datafiles(source_folder)
 
     # print("Training model...")
     # subprocess.call("wapiti train -p " + PATTERN_FILE + " " + WAPITI_TRAIN_FILE + " " + WAPITI_MODEL_FILE, stdout=open(os.devnull, 'wb'), stderr=open(os.devnull, 'wb'), shell=True)
@@ -57,6 +55,7 @@ def main(argv):
     # subprocess.call("wapiti label -m " + WAPITI_MODEL_FILE + " -p -c " + WAPITI_GOLD_FILE, shell=True)
 
 
+# Converts email tagged files to Mallet data format
 def make_mallet_data(source_folder):
     progress = ProgressBar()
 
@@ -76,6 +75,7 @@ def make_mallet_data(source_folder):
                         out.write(sentence.decode("UTF-8"))
 
 
+# Writes wapiti datafiles
 def make_datafiles(source_folder):
     train = True
     limit = 1000
@@ -147,6 +147,7 @@ def make_datafiles(source_folder):
     make_patterns(largest_sentence)
 
 
+# Writes wapiti datafiles (vectorial approach)
 def make_vector_datafiles(data, vector):
     train_limit = int(len(data) * 0.9)
 
@@ -180,7 +181,7 @@ def make_vector_datafiles(data, vector):
     make_vector_patterns(vector)
 
 
-# Writes to file 
+# Computes and writes patterns
 def make_patterns(largest_sentence):
     with codecs.open(PATTERN_FILE, "w", "UTF-8") as out:
         i = 1
@@ -205,7 +206,7 @@ def make_patterns(largest_sentence):
             out.write("\n")
 
 
-# Writes to file patterns for the given vector
+# Computes and writes patterns (vectorial approach)
 def make_vector_patterns(vector):
     with codecs.open(PATTERN_FILE, "w", "UTF-8") as out:
         progress = ProgressBar()
@@ -220,7 +221,7 @@ def make_vector_patterns(vector):
             out.write("\n")
 
 
-# Extracts data from tagged emails
+# Extracts data from tagged emails (vectorial approach)
 def extract_data(source_folder):
     data = []
     vector = set([]) # set of all distinct ngrams in corpus

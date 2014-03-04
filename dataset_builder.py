@@ -48,7 +48,7 @@ def main(argv):
 
     # reading imposed ngram list
     
-    imposed_ngrams = [ngram.strip() for ngram in tuple(codecs.open(ngram_file, "r"))]
+    imposed_ngrams = [ngram.strip() for ngram in tuple(codecs.open(ngram_file, "r", "utf-8"))]
 
     imposed_ngrams_feature_list = [(ngram, "integer") for ngram in imposed_ngrams]
 
@@ -101,7 +101,8 @@ def main(argv):
         # preprocessing for ngram features
 
         blob = TextBlob(sentence)
-        blob_ngrams = tokens + extract_bigrams(blob)
+        blob_ngrams = blob.tokens + extract_bigrams(blob)
+        blob_ngrams = [ngram.encode("utf-8") for ngram in blob_ngrams]
 
         for ngram in set(blob_ngrams):
             if not ngram in n_containing:
@@ -129,8 +130,12 @@ def main(argv):
     for i, blob in enumerate(progress(blobs)):
         sid = make_sid(blob)
 
-        for ngram in blob.tokens + extract_bigrams(blob):
-            tf = float(" ".join(blob.tokens).count(ngram)) / len(blob.tokens)
+        blob_ngrams = blob.tokens + extract_bigrams(blob)
+        blob_ngrams = [ngram.encode("utf-8") for ngram in blob_ngrams]
+
+        for ngram in blob_ngrams:
+            tokens = [t.encode("utf-8") for t in blob.tokens]
+            tf = float(" ".join(tokens).count(ngram)) / len(blob.tokens)
             idf = math.log(len(blobs) / n_containing[ngram])
             tf_idf = tf * idf
 
@@ -157,13 +162,13 @@ def main(argv):
 
 # Makes sentence id from blob
 def make_sid(blob):
-    return hashlib.md5(" ".join(blob.tokens)).hexdigest()
+    tokens = [ngram.encode("utf-8") for ngram in blob.tokens]
+    return hashlib.md5(" ".join(tokens)).hexdigest()
 
 
 # Extracts bigrams from a blob
 def extract_bigrams(blob):
-    l = [x + " " + y for x, y in zip(blob.tokens, blob.tokens[1:])]
-    return [x.encode("utf-8") for x in l]
+    return [x + " " + y for x, y in zip(blob.tokens, blob.tokens[1:])]
 
 
 # Builds visual features
@@ -192,7 +197,7 @@ def build_visual_features(visual_feature_list, sentence, tokens, line_number):
 
 # Writes arff files
 def write_arff(dataset, feature_list, filename, test=False):
-    with codecs.open(filename, "w", "UTF-8") as out:
+    with codecs.open(filename, "w", "utf-8") as out:
         # writes header
         out.write("@relation " + filename.replace(".arff", "").replace(".", "-") + "\n\n")
 
@@ -237,10 +242,10 @@ def load_data(folder, max_lines, filter_i=False):
 
     ln = 0
 
-    # prev_bool_val = prev_label = None
+    prev_bool_val = prev_label = None
 
     for filename in os.listdir(folder):
-        for i, line in enumerate(tuple(codecs.open(folder + filename, "r"))):
+        for i, line in enumerate(tuple(codecs.open(folder + filename, "r", "utf-8"))):
             line = line.strip()
             if not line.startswith("#"):
                 tokens = line.split()
@@ -249,13 +254,13 @@ def load_data(folder, max_lines, filter_i=False):
 
                     bool_val = "T" if label == "B" or label == "BE" else "F"
 
-                    # if prev_bool_val == bool_val:
-                    #     continue
+                    if prev_bool_val == bool_val:
+                        continue
 
                     # if not filter_i or label != "I" or prev_label != "I": # filters out consecutive "I" labelled sentences
                     data.append((tokens, bool_val, i))
                     
-                    # prev_bool_val = bool_val
+                    prev_bool_val = bool_val
                     # prev_label = label
                     
                     ln += 1
