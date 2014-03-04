@@ -1,7 +1,130 @@
+label BoW 1000 1st mails:
+    T       Pr=1.00  Rc=0.02  F1=0.04
+    F       Pr=0.78  Rc=1.00  F1=0.88
+
+    
+
+============================================================
+
+Binary (B or BE): 75%
+
+T       Pr=0.79  Rc=0.46  F1=0.58
+F       Pr=0.87  Rc=0.97  F1=0.92
+
+Binary (BE): 55.5%
+
+T       Pr=0.45  Rc=0.08  F1=0.14
+F       Pr=0.94  Rc=0.99  F1=0.97
+
+Binary (E): 71%
+
+T       Pr=0.64  Rc=0.40  F1=0.49
+F       Pr=0.91  Rc=0.96  F1=0.93
+
+Binary (E or BE): 73%
+
+T       Pr=0.77  Rc=0.42  F1=0.55
+F       Pr=0.87  Rc=0.97  F1=0.91
+
+Binary (I): 78%
+
+F       Pr=0.77  Rc=0.63  F1=0.70
+T       Pr=0.82  Rc=0.90  F1=0.86
+
+================================================================
+
 										NBPN		J48			BN
 ubuntu-fr 								42.90%		51.90%		53.00%
 ubuntu-fr w/o consecutive I				28.50%		37.90%		40.40%
 ubuntu-users (first 50k instances)		36.20%		55.00%		56.40%
+
+#################
+TEST WITHOUT NGRAMS AND WITH SAME AMOUT OF TRUE AND FALSE
+##################
+
+=== Summary ===
+
+Correctly Classified Instances       15745               71.5682 %
+Incorrectly Classified Instances      6255               28.4318 %
+Kappa statistic                          0.423 
+Mean absolute error                      0.3081
+Root mean squared error                  0.4012
+Relative absolute error                 61.8117 %
+Root relative squared error             80.3562 %
+Total Number of Instances            22000     
+
+=== Detailed Accuracy By Class ===
+
+               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
+                 0.829     0.411      0.693     0.829     0.755      0.824    T
+                 0.589     0.171      0.755     0.589     0.662      0.824    F
+Weighted Avg.    0.716     0.297      0.722     0.716     0.711      0.824
+
+=== Confusion Matrix ===
+
+    a    b   <-- classified as
+ 9620 1984 |    a = T
+ 4271 6125 |    b = F
+
+
+#################
+TEST WITHOUT NGRAMS
+####################
+
+=== Summary ===
+
+Correctly Classified Instances       15121               82.8049 %
+Incorrectly Classified Instances      3140               17.1951 %
+Kappa statistic                          0.4262
+Mean absolute error                      0.2627
+Root mean squared error                  0.3704
+Relative absolute error                 69.4688 %
+Root relative squared error             85.175  %
+Total Number of Instances            18261     
+
+=== Detailed Accuracy By Class ===
+
+               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
+                 0.346     0.009      0.932     0.346     0.505      0.772    T
+                 0.991     0.654      0.817     0.991     0.896      0.772    F
+Weighted Avg.    0.828     0.49       0.846     0.828     0.797      0.772
+
+=== Confusion Matrix ===
+
+     a     b   <-- classified as
+  1601  3023 |     a = T
+   117 13520 |     b = F
+
+
+=======================
+test_binary_en_25k.arff
+=======================
+
+# BayesNet #
+
+=== Summary ===
+
+Correctly Classified Instances       19781               81.7228 %
+Incorrectly Classified Instances      4424               18.2772 %
+Kappa statistic                          0.4219
+Mean absolute error                      0.2682
+Root mean squared error                  0.3768
+Relative absolute error                 68.2517 %
+Root relative squared error             85.0095 %
+Total Number of Instances            24205     
+
+=== Detailed Accuracy By Class ===
+
+               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
+                 0.351     0.011      0.919     0.351     0.508      0.762    T
+                 0.989     0.649      0.806     0.989     0.888      0.762    F
+Weighted Avg.    0.817     0.478      0.836     0.817     0.786      0.762
+
+=== Confusion Matrix ===
+
+     a     b   <-- classified as
+  2282  4222 |     a = T
+   202 17499 |     b = F
 
 ==========================
 test_no_filter_en_50k.arff

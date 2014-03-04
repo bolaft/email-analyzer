@@ -47,7 +47,11 @@ public class MessageCoupleAligner extends JCasAnnotator_ImplBase {
 	public void process(JCas aJCas) throws AnalysisEngineProcessException {
 		SourceDocumentInformation sourceDocumentInformation = (SourceDocumentInformation) aJCas.getAnnotationIndex(aJCas.getTypeSystem().getType(DEFAULT_SOURCE_DOCUMENT_INFORMATION_ANNOTATION)).iterator().get();
 
-		Out.print("processing " + sourceDocumentInformation.getUri());
+		if (!sourceDocumentInformation.getUri().equals("2013-Feb-18-Mon-20-21-07-CET-paco.f2@wanadoo.fr_2013-Feb-18-Mon-20-37-56-CET-txodom@free.fr")) {
+			return;
+		} else {
+			System.out.println("FOUND SPECIAL ID");
+		}
 
 		/** Get the messages */
 		AnnotationIndex<Annotation> emailMessageAnnotationIndex = aJCas.getAnnotationIndex(email.types.Message.type);
@@ -63,7 +67,7 @@ public class MessageCoupleAligner extends JCasAnnotator_ImplBase {
 		MessageAlignment messageAlignement = new MessageAlignment();
 
 		/* ALIGN TWO MESSAGES BASED ON THE WER MEASURE*/
-		messageAlignement.alignBasedOnWer(messageSourceText,messageReplyText);
+		messageAlignement.alignBasedOnWer(messageSourceText, messageReplyText);
 		
 		/* ALIGN ARTIFICIALLY TWO MESSAGES ONLY BASED ON THE REPLY MESSAGE AND ITS REPLY LINES */
 		//messageAlignement.alignOnlyFromReplyMessage (Arrays.asList(messageReplyText.split("\\n")));
@@ -71,6 +75,13 @@ public class MessageCoupleAligner extends JCasAnnotator_ImplBase {
 		/** tag the aligned */
 		List<String> taggedAlignedSourceMessageLines = (List<String>) MessageAlignment.tagSourceMessage(messageAlignement.getAlignedSourceMessageLines(), messageAlignement.getAlignedReplyMessageLines());
 				
+		for (String line : messageAlignement.getAlignedSourceMessageLines()){
+			IO.write(line, "AB_source_lines", true);
+		}
+		for (String line : taggedAlignedSourceMessageLines){
+			IO.write(line, "AB_tagged_lines", true);
+		}
+		
 		/** export the tag*/
 		StringBuffer output = new StringBuffer();
 		for (int i = 0; i < messageAlignement.getAlignedSourceMessageLines().size() ; i++) {

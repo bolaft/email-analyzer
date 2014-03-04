@@ -12,7 +12,7 @@
     february 13, 2014 (creation)
 
 :Description:
-    Extract features from tagged emails as outputted by the LINA email-analyzer project and converts them into valid Weka datasets (.arff files)
+    Extracts features from tagged emails as outputted by the LINA email-analyzer project and converts them into valid Weka datasets (.arff files)
     (see https://github.com/bolaft/email-analyzer)
 """
 
@@ -40,6 +40,7 @@ visual_feature_list = [
     ("proportion_of_alphabetic_characters", "real"),
     ("proportion_of_numeric_characters", "real")
 ]
+
 
 # Main
 def main(argv):
@@ -70,7 +71,7 @@ def main(argv):
     # 
     # [("B", ["token", "tnkoe", "ekotn", ...], 1), ...]
 
-    data = load_data(data_folder, filter_i=True)
+    data = load_data(data_folder, 25000, filter_i=True)
 
     # building dataset
     
@@ -128,7 +129,7 @@ def main(argv):
     for i, blob in enumerate(progress(blobs)):
         sid = make_sid(blob)
 
-        for ngram in tokens + extract_bigrams(blob):
+        for ngram in blob.tokens + extract_bigrams(blob):
             tf = float(" ".join(blob.tokens).count(ngram)) / len(blob.tokens)
             idf = math.log(len(blobs) / n_containing[ngram])
             tf_idf = tf * idf
@@ -187,7 +188,7 @@ def build_visual_features(visual_feature_list, sentence, tokens, line_number):
         values["proportion_of_numeric_characters"] = float(sum(x.isdigit() for x in sentence)) / len(sentence)
 
     return values
-        
+
 
 # Writes arff files
 def write_arff(dataset, feature_list, filename, test=False):
@@ -227,31 +228,52 @@ def replace_special_chars(str, replace):
 
 
 # Loads data from tagged email files
-def load_data(folder, filter_i=False):
+def load_data(folder, max_lines, filter_i=False):
     data = []
 
     print("loading data from " + folder + "...")
 
-    progress = ProgressBar()
+    progress = ProgressBar(maxval=max_lines).start()
 
-    for filename in progress(os.listdir(folder)):
-        prev_label = None
+    ln = 0
+
+    # prev_bool_val = prev_label = None
+
+    for filename in os.listdir(folder):
         for i, line in enumerate(tuple(codecs.open(folder + filename, "r"))):
             line = line.strip()
             if not line.startswith("#"):
                 tokens = line.split()
                 if len(tokens) > 1:
                     label = tokens.pop(0)
-                    if not filter_i or label != "I" or prev_label != "I": # filters out consecutive "I" labelled sentences
-                        data.append((tokens, label, i))
-                    prev_label = label
+
+                    bool_val = "T" if label == "B" or label == "BE" else "F"
+
+                    # if prev_bool_val == bool_val:
+                    #     continue
+
+                    # if not filter_i or label != "I" or prev_label != "I": # filters out consecutive "I" labelled sentences
+                    data.append((tokens, bool_val, i))
+                    
+                    # prev_bool_val = bool_val
+                    # prev_label = label
+                    
+                    ln += 1
+                    if ln < max_lines:
+                        progress.update(ln)
+            
+        if ln > max_lines:
+            break
+
+    progress.finish()
 
     return data
+
 
 # Process argv
 def process_argv(argv):
     if len(argv) != 4:
-        print("Usage: ./" + argv[0] + " <data folder> <ngram file> <arff file>")
+        print("Usage: " + argv[0] + " <data folder> <ngram file> <arff file>")
         sys.exit()
 
     # adding a "/" to the dirpath if not present

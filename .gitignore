@@ -8,4 +8,6 @@ m2localrepo/*
 data/*
 target/*
 tmp/*
+var/*
+backup/*
 !.gitkeep

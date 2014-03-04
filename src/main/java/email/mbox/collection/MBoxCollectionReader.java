@@ -23,7 +23,6 @@ import org.apache.uima.util.Progress;
 
 import com.auxilii.msgparser.Message;
 
-import common.util.IO;
 import common.util.Out;
 import email.mbox.model.MBoxMessage;
 import factory.parser.MBoxParser;
@@ -162,13 +161,6 @@ public class MBoxCollectionReader extends JCasCollectionReader_ImplBase {
 				Out.print("the messageId " + messageId + " has already been generated", Out.WARN_LEVEL);
 			} else {
 				messageIdUrlAlreadyCreated.add(messageId);
-				
-				if (messageId.equals("2013-Feb-18-Mon-20-21-07-CET-paco.f2@wanadoo.fr_2013-Feb-18-Mon-20-37-56-CET-txodom@free.fr")) {
-					System.out.println("FOUND SPECIAL ID");
-					IO.write(messageContent, "crgettnext1", false);
-					IO.write(documentText, "crgettnext2", false);
-					IO.write(messageSource.getBodyText(), "crgettnext3", false);
-				}
 			}
 
 			lastDate = messageSource.getDate().getTime();
