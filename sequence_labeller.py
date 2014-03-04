@@ -17,9 +17,9 @@
 """
 
 from progressbar import ProgressBar
-from nltk.stem.wordnet import WordNetLemmatizer
+# from nltk.stem.wordnet import WordNetLemmatizer
 
-import nltk
+# import nltk
 import sys
 import codecs
 import os
@@ -48,7 +48,7 @@ def main(argv):
     # make_datafiles(source_folder)
 
     # print("Training model...")
-    # subprocess.call("wapiti train -a rprop -p " + PATTERN_FILE + " " + WAPITI_TRAIN_FILE + " " + WAPITI_MODEL_FILE, stdout=open(os.devnull, 'wb'), stderr=open(os.devnull, 'wb'), shell=True)
+    # subprocess.call("wapiti train -p " + PATTERN_FILE + " " + WAPITI_TRAIN_FILE + " " + WAPITI_MODEL_FILE, stdout=open(os.devnull, 'wb'), stderr=open(os.devnull, 'wb'), shell=True)
 
     # print("Applying model on test data...")
     # subprocess.call("wapiti label -m " + WAPITI_MODEL_FILE + " -p " + WAPITI_TEST_FILE + " " + WAPITI_RESULT_FILE, stdout=open(os.devnull, 'wb'), stderr=open(os.devnull, 'wb'), shell=True)
@@ -147,6 +147,40 @@ def make_datafiles(source_folder):
     make_patterns(largest_sentence)
 
 
+def make_vector_datafiles(data, vector):
+    train_limit = int(len(data) * 0.9)
+
+    with codecs.open(WAPITI_TRAIN_FILE, "w", "UTF-8") as train_out:
+        with codecs.open(WAPITI_TEST_FILE, "w", "UTF-8") as test_out:
+            with codecs.open(WAPITI_GOLD_FILE, "w", "UTF-8") as gold_out:
+                out = [train_out]
+                progress = ProgressBar()
+
+                for i, (ngrams, label) in enumerate(progress(data)):
+                    if label == None:
+                        for chan in out:
+                            chan.write("\n")
+                        continue
+
+                    if i == train_limit:
+                        out = [test_out, gold_out]
+
+                    obs = ""
+
+                    for ngram in vector:
+                        if ngram in ngrams:
+                            obs += "1 "
+                        else:
+                            obs += "0 "
+
+                    for chan in out:
+                        chan.write(obs)
+                        chan.write("T\n" if label == "B" or label == "BE" else "F\n")
+
+    make_vector_patterns(vector)
+
+
+# Writes to file 
 def make_patterns(largest_sentence):
     with codecs.open(PATTERN_FILE, "w", "UTF-8") as out:
         i = 1
@@ -169,6 +203,54 @@ def make_patterns(largest_sentence):
                     i += 1
 
             out.write("\n")
+
+
+# Writes to file patterns for the given vector
+def make_vector_patterns(vector):
+    with codecs.open(PATTERN_FILE, "w", "UTF-8") as out:
+        progress = ProgressBar()
+        i = 0
+        for col in progress(xrange(0, len(vector))):
+            for off in xrange(-2, 3):
+                i += 1
+                col = str(col)
+                off = str(off) if off < 1 else "+" + str(off)
+
+                out.write("b" + str(i) + ":%t[" + off + "," + col + ",\"^1$\"]\n")
+            out.write("\n")
+
+
+# Extracts data from tagged emails
+def extract_data(source_folder):
+    data = []
+    vector = set([]) # set of all distinct ngrams in corpus
+
+    progress = ProgressBar()
+
+    for i, filename in enumerate(progress(os.listdir(source_folder))):
+        if i == 1000:
+            break
+        with codecs.open(source_folder + filename, "r") as f:
+            for line in f:                
+                if not line.startswith("#"):
+                    tokens = line.split()
+
+                    if len(tokens) > 1:
+                        label = tokens.pop(0)
+                        ngrams = set(tokens + extract_bigrams(tokens))
+                        vector.update(ngrams)
+                        data.append((ngrams, label))
+
+        vector = set(vector)
+        data.append((None, None))
+
+    return data, vector
+
+
+# Extracts bigrams
+def extract_bigrams(tokens):
+    l = [x + " " + y for x, y in zip(tokens, tokens[1:])]
+    return [x.encode("utf-8") for x in l]
 
 
 # Process argv
