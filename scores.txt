@@ -1,8 +1,22 @@
+word seq label ac POS & filter consecutives:
+    T       Pr=0.83  Rc=0.78  F1=0.80
+    F       Pr=0.76  Rc=0.80  F1=0.78
+
+word seq label ac POS:
+    T       Pr=0.61  Rc=0.47  F1=0.53
+    F       Pr=0.83  Rc=0.89  F1=0.86
+
 label BoW 1000 1st mails:
     T       Pr=1.00  Rc=0.02  F1=0.04
     F       Pr=0.78  Rc=1.00  F1=0.88
 
-    
+seq label not vector 1000:
+    T       Pr=1.00  Rc=0.31  F1=0.47
+    F       Pr=0.83  Rc=1.00  F1=0.91
+
+seq label not vector 15k:
+    T       Pr=1.00  Rc=0.34  F1=0.50
+    F       Pr=0.88  Rc=1.00  F1=0.94
 
 ============================================================
 

@@ -19,6 +19,8 @@
 from text.blob import TextBlob
 from progressbar import ProgressBar
 
+import nltk
+
 import math
 import sys
 import codecs
@@ -29,7 +31,6 @@ import operator
 
 
 # Constants
-
 visual_feature_list = [
     ("position", "integer"),
     ("number_of_tokens", "integer"),
@@ -38,7 +39,26 @@ visual_feature_list = [
     ("average_token_length", "real"),
     ("proportion_of_uppercase_characters", "real"),
     ("proportion_of_alphabetic_characters", "real"),
-    ("proportion_of_numeric_characters", "real")
+    ("proportion_of_numeric_characters", "real"),
+    ("contains_interrogation_mark", "{TRUE, FALSE}"),
+    ("ends_with_interrogation_mark", "{TRUE, FALSE}"),
+    ("contains_colon", "{TRUE, FALSE}"),
+    ("ends_with_colon", "{TRUE, FALSE}"),
+    ("previous_contains_interrogation_mark", "{NULL, TRUE, FALSE}"),
+    ("previous_ends_with_interrogation_mark", "{NULL, TRUE, FALSE}"),
+    ("previous_contains_colon", "{NULL, TRUE, FALSE}"),
+    ("previous_ends_with_colon", "{NULL, TRUE, FALSE}"),
+    ("next_contains_interrogation_mark", "{NULL, TRUE, FALSE}"),
+    ("next_ends_with_interrogation_mark", "{NULL, TRUE, FALSE}"),
+    ("next_contains_colon", "{NULL, TRUE, FALSE}"),
+    ("next_ends_with_colon", "{NULL, TRUE, FALSE}"),
+    ("starts_with_interrogating_word", "{TRUE, FALSE}"),
+    ("contains_interrogating_word", "{TRUE, FALSE}"),
+    ("first_verb_form", "{NO_VERB, VB, VBD, VBG, VBN, VBP, VBZ}"),
+    ("first_punctuation_position", "integer"),
+    ("first_personal_pronoun", "{NO_PERSONAL_PRONOUN, I, YOU, HE, SHE, WE, THEY}"),
+    ("contains_modal_word", "{TRUE, FALSE}"),
+    ("contains_plan_phrase", "{TRUE, FALSE}")
 ]
 
 
@@ -77,9 +97,9 @@ def main(argv):
     
     print("preprocessing...")
 
-    blobs = [] # list of all text blob (one per sentence)
-    ngrams = set([]) # set of all distinct ngrams in corpus
-    n_containing = {} # for each word, number of documents containing it
+    # blobs = [] # list of all text blob (one per sentence)
+    # ngrams = set([]) # set of all distinct ngrams in corpus
+    # n_containing = {} # for each word, number of documents containing it
 
     progress = ProgressBar()
 
@@ -89,29 +109,37 @@ def main(argv):
         features = {}
         sentence = " ".join(tokens)
 
-        # building visual features
+        next_sentence = previous_sentence = None
 
-        features.update(build_visual_features(dict(visual_feature_list), sentence, tokens, line_number))
+        if i < len(data) - 1:
+            next_tokens, next_label, next_line_number = data[i + 1]
+            next_sentence = " ".join(next_tokens)
+        if i > 0:
+            previous_tokens, previous_label, previous_line_number = data[i - 1]
+            previous_sentence = " ".join(previous_tokens)
+
+        # building visual features
+        token_tag_pairs = nltk.pos_tag(tokens)
+
+        features.update(build_visual_features(dict(visual_feature_list), previous_sentence, sentence, next_sentence, [t.lower() for t in tokens], token_tag_pairs, line_number))
         
         for imposed_ngram in imposed_ngrams:
             features[imposed_ngram] = sentence.count(imposed_ngram)
-            print imposed_ngram
-            print features[imposed_ngram]
 
         # preprocessing for ngram features
 
         blob = TextBlob(sentence)
-        blob_ngrams = blob.tokens + extract_bigrams(blob)
-        blob_ngrams = [ngram.encode("utf-8") for ngram in blob_ngrams]
+        # blob_ngrams = blob.tokens + extract_bigrams(blob)
+        # blob_ngrams = [ngram.encode("utf-8") for ngram in blob_ngrams]
 
-        for ngram in set(blob_ngrams):
-            if not ngram in n_containing:
-                n_containing[ngram] = 1
-            else:
-                n_containing[ngram] += 1
+        # for ngram in set(blob_ngrams):
+        #     if not ngram in n_containing:
+        #         n_containing[ngram] = 1
+        #     else:
+        #         n_containing[ngram] += 1
 
-        ngrams.update(blob_ngrams)
-        blobs.append(blob)
+        # ngrams.update(blob_ngrams)
+        # blobs.append(blob)
 
         sid = make_sid(blob)
 
@@ -121,33 +149,33 @@ def main(argv):
 
     #################################################################################
     
-    print("selecting features...")
+    # print("selecting features...")
 
-    best_scores = {}
+    # best_scores = {}
 
-    progress = ProgressBar()
+    # progress = ProgressBar()
 
-    for i, blob in enumerate(progress(blobs)):
-        sid = make_sid(blob)
+    # for i, blob in enumerate(progress(blobs)):
+    #     sid = make_sid(blob)
 
-        blob_ngrams = blob.tokens + extract_bigrams(blob)
-        blob_ngrams = [ngram.encode("utf-8") for ngram in blob_ngrams]
+    #     blob_ngrams = blob.tokens + extract_bigrams(blob)
+    #     blob_ngrams = [ngram.encode("utf-8") for ngram in blob_ngrams]
 
-        for ngram in blob_ngrams:
-            tokens = [t.encode("utf-8") for t in blob.tokens]
-            tf = float(" ".join(tokens).count(ngram)) / len(blob.tokens)
-            idf = math.log(len(blobs) / n_containing[ngram])
-            tf_idf = tf * idf
+    #     for ngram in blob_ngrams:
+    #         tokens = [t.encode("utf-8") for t in blob.tokens]
+    #         tf = float(" ".join(tokens).count(ngram)) / len(blob.tokens)
+    #         idf = math.log(len(blobs) / n_containing[ngram])
+    #         tf_idf = tf * idf
 
-            dataset[sid]["features"][ngram] = tf_idf
+    #         dataset[sid]["features"][ngram] = tf_idf
 
-            if not ngram in best_scores or best_scores[ngram] < tf_idf:
-                best_scores[ngram] = tf_idf
+    #         if not ngram in best_scores or best_scores[ngram] < tf_idf:
+    #             best_scores[ngram] = tf_idf
     
-    sorted_scores = sorted(best_scores.iteritems(), key=operator.itemgetter(1)) # sorting scores by order of tf_idf
+    # sorted_scores = sorted(best_scores.iteritems(), key=operator.itemgetter(1)) # sorting scores by order of tf_idf
     
-    for ngram, best_tf_idf in sorted_scores[:len(ngrams) / 1000]: # keeping only the best 0.1%
-        feature_list.append((ngram, "real"))
+    # for ngram, best_tf_idf in sorted_scores[:len(ngrams)]: # keeping only the best 0.1%
+    #     feature_list.append((ngram, "real"))
 
     #################################################################################
 
@@ -172,25 +200,89 @@ def extract_bigrams(blob):
 
 
 # Builds visual features
-def build_visual_features(visual_feature_list, sentence, tokens, line_number):
+def build_visual_features(visual_feature_list, previous_sentence, sentence, next_sentence, tokens, token_tag_pairs, line_number):
     values = {}
 
-    if "position" in visual_feature_list:
-        values["position"] = line_number
-    if "number_of_tokens" in visual_feature_list:
-        values["number_of_tokens"] = len(tokens)
-    if "number_of_characters" in visual_feature_list:
-        values["number_of_characters"] = len(sentence)
-    if "number_of_quote_symbols" in visual_feature_list:
-        values["number_of_quote_symbols"] = sentence.count(">")
-    if "average_token_length" in visual_feature_list:
-        values["average_token_length"] = sum(map(len, tokens)) / float(len(tokens))
-    if "proportion_of_uppercase_characters" in visual_feature_list:
-        values["proportion_of_uppercase_characters"] = float(sum(x.isupper() for x in sentence)) / len(sentence)
-    if "proportion_of_alphabetic_characters" in visual_feature_list:
-        values["proportion_of_alphabetic_characters"] = float(sum(x.isalpha() for x in sentence)) / len(sentence)
-    if "proportion_of_numeric_characters" in visual_feature_list:
-        values["proportion_of_numeric_characters"] = float(sum(x.isdigit() for x in sentence)) / len(sentence)
+    values["position"] = line_number
+    values["number_of_tokens"] = len(tokens)
+    values["number_of_characters"] = len(sentence)
+    values["number_of_quote_symbols"] = sentence.count(">")
+    values["average_token_length"] = sum(map(len, tokens)) / float(len(tokens))
+    values["proportion_of_uppercase_characters"] = float(sum(x.isupper() for x in sentence)) / len(sentence)
+    values["proportion_of_alphabetic_characters"] = float(sum(x.isalpha() for x in sentence)) / len(sentence)
+    values["proportion_of_numeric_characters"] = float(sum(x.isdigit() for x in sentence)) / len(sentence)
+
+    values["contains_interrogation_mark"] = "TRUE" if sentence.count("?") > 0 else "FALSE"
+    values["ends_with_interrogation_mark"] = "TRUE" if sentence[-1] == "?" else "FALSE"
+    values["contains_colon"] = "TRUE" if sentence.count(":") > 0 else "FALSE"
+    values["ends_with_colon"] = "TRUE" if sentence[-1] == ":" else "FALSE"
+    
+    values["previous_contains_interrogation_mark"] = "NULL"
+    
+    if previous_sentence != None:
+        values["previous_contains_interrogation_mark"] = "TRUE" if previous_sentence.count("?") > 0 else "FALSE"
+    
+    values["previous_ends_with_interrogation_mark"] = "NULL"
+    
+    if previous_sentence != None:
+        values["previous_ends_with_interrogation_mark"] = "TRUE" if previous_sentence[-1] == "?" else "FALSE"
+    
+    values["previous_contains_colon"] = "NULL"
+    
+    if previous_sentence != None:
+        values["previous_contains_colon"] = "TRUE" if previous_sentence.count(":") > 0 else "FALSE"
+    
+    values["previous_ends_with_colon"] = "NULL"
+    
+    if previous_sentence != None:
+        values["previous_ends_with_colon"] = "TRUE" if previous_sentence[-1] == ":" else "FALSE"
+    
+    values["next_contains_interrogation_mark"] = "NULL"
+    
+    if next_sentence != None:
+        values["next_contains_interrogation_mark"] = "TRUE" if next_sentence.count("?") > 0 else "FALSE"
+    
+    values["next_ends_with_interrogation_mark"] = "NULL"
+    
+    if next_sentence != None:
+        values["next_ends_with_interrogation_mark"] = "TRUE" if next_sentence[-1] == "?" else "FALSE"
+    
+    values["next_contains_colon"] = "NULL"
+    
+    if next_sentence != None:
+        values["next_contains_colon"] = "TRUE" if next_sentence.count(":") > 0 else "FALSE"
+    
+    values["next_ends_with_colon"] = "NULL"
+    
+    if next_sentence != None:
+        values["next_ends_with_colon"] = "TRUE" if next_sentence[-1] == ":" else "FALSE"
+
+    values["starts_with_interrogating_word"] = "TRUE" if tokens[0] in ["who", "when", "where", "what", "which", "what", "how"] else "FALSE"
+    values["contains_interrogating_word"] = "TRUE" if not set(tokens).isdisjoint(["who", "when", "where", "what", "which", "what", "how"]) else "FALSE"
+
+    values["first_verb_form"] = "NO_VERB"
+
+    for token, tag in token_tag_pairs:
+        if tag in ["VB", "VBD", "VBG", "VBN", "VBP", "VBZ"]:
+            values["first_verb_form"] = tag
+            break
+
+    values["first_punctuation_position"] = -1
+
+    for i, token in enumerate(tokens):
+        if token in [".", ";", ":", "?", "!"]:
+            values["first_punctuation_position"] = i
+
+    values["first_personal_pronoun"] = "NO_PERSONAL_PRONOUN"
+
+    for token in tokens:
+        if token in ["i", "you", "he", "she", "we", "they"]:
+            values["first_personal_pronoun"] = token.upper()
+
+    # values["tense_and_personal_pronoun"] = None
+
+    values["contains_modal_word"] = "TRUE" if any(word in sentence for word in ["may", "must", "shall", "will", "might", "should", "would", "could"]) else "FALSE"
+    values["contains_plan_phrase"] = "TRUE" if any(ngram in sentence for ngram in ["i will", "i am going to", "we will", "we are going to", "i plan to", "we plan to"]) else "FALSE"
 
     return values
 
@@ -242,7 +334,7 @@ def load_data(folder, max_lines, filter_i=False):
 
     ln = 0
 
-    prev_bool_val = prev_label = None
+    # prev_label_boolean = prev_label = None
 
     for filename in os.listdir(folder):
         for i, line in enumerate(tuple(codecs.open(folder + filename, "r", "utf-8"))):
@@ -252,15 +344,15 @@ def load_data(folder, max_lines, filter_i=False):
                 if len(tokens) > 1:
                     label = tokens.pop(0)
 
-                    bool_val = "T" if label == "B" or label == "BE" else "F"
+                    label_boolean = "T" if label == "B" or label == "BE" else "F"
 
-                    if prev_bool_val == bool_val:
-                        continue
+                    # if prev_label_boolean == label_boolean:
+                    #     continue
 
                     # if not filter_i or label != "I" or prev_label != "I": # filters out consecutive "I" labelled sentences
-                    data.append((tokens, bool_val, i))
+                    data.append((tokens, label_boolean, i))
                     
-                    prev_bool_val = bool_val
+                    # prev_label_boolean = label_boolean
                     # prev_label = label
                     
                     ln += 1

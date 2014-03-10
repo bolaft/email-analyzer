@@ -51,7 +51,8 @@ def main(argv):
         sentence = " ".join(tokens)
 
         blob = TextBlob(sentence)
-        blob_ngrams = blob.tokens + extract_bigrams(blob)
+        blob_ngrams = blob.tokens
+        # blob_ngrams = blob.tokens + extract_bigrams(blob)
 
         for ngram in set(blob_ngrams):
             if not ngram in n_containing:
@@ -72,7 +73,8 @@ def main(argv):
     progress = ProgressBar()
 
     for blob in progress(blobs):
-        for ngram in blob.tokens + extract_bigrams(blob):
+        # for ngram in blob.tokens + extract_bigrams(blob):
+        for ngram in blob.tokens:
             tf = float(" ".join(blob.tokens).count(ngram)) / len(blob.tokens)
             idf = math.log(len(blobs) / n_containing[ngram])
             tf_idf = tf * idf
@@ -87,8 +89,9 @@ def main(argv):
 
     #################################################################################
 
-    for feat in selected_features:
-        print(feat.decode("utf-8"))
+    with codecs.open(ngram_file, "w", "utf-8") as out:
+        for feat in selected_features:
+            out.write(feat + "\n")
 
 
 # Makes sentence id from blob
