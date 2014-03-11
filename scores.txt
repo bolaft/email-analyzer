@@ -1,3 +1,28 @@
+
+============================================================
+
+first_last_tokens_filter_i
+
+          Result: Base.:  Diff.:
+WindowDiff: 61.79%  66.09%  4.30
+pk:         14.92%  18.28%  3.36
+ghd:        40.45%  44.06%  3.61
+
+result/gold segment ratio: x1.30
+
+============================================================
+
+first_last_tokens_filter_i_10k
+
+          Result: Base.:  Diff.:
+WindowDiff: 52.18%  67.74%  15.56
+pk:         17.83%  24.64%  6.81
+ghd:        33.85%  44.21%  10.36
+
+result/gold segment ratio: x1.42
+
+============================================================
+
 word seq label ac POS & filter consecutives:
     T       Pr=0.83  Rc=0.78  F1=0.80
     F       Pr=0.76  Rc=0.80  F1=0.78

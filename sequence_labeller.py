@@ -18,29 +18,27 @@
 
 from progressbar import ProgressBar
 from nltk.stem.wordnet import WordNetLemmatizer
-from nltk.metrics.segmentation import windowdiff
+from nltk.metrics.segmentation import windowdiff, ghd, pk
+from optparse import OptionParser
 
 import re
 import nltk
-import sys
 import codecs
 import os
 import string
 import subprocess
+import math
+import sys
+import time
 
+# Paths
+DATA_FOLDER = "data/ubuntu-users/email.message.tagged/"
 
 # Wapiti
-WAPITI_TRAIN_FILE = "var/train"
-WAPITI_TEST_FILE = "var/test"
-WAPITI_GOLD_FILE = "var/gold"
-WAPITI_RESULT_FILE = "var/result"
-WAPITI_MODEL_FILE = "var/model"
-WAPITI_PATTERN_FILE = "var/patterns"
+WAPITI_TRAIN_FILE = WAPITI_TEST_FILE = WAPITI_GOLD_FILE = WAPITI_RESULT_FILE = WAPITI_MODEL_FILE = WAPITI_PATTERN_FILE = None
 
 # Constants
-limit = 100
-
-train_limit = int(limit * 0.9)
+instances = 0
 
 avg = {
     "position": 0,
@@ -53,103 +51,164 @@ avg = {
     "proportion_of_numeric_characters": 0
 }
 
-instances = 0
-
 # Main
-def main(argv):
-    source_folder = process_argv(argv)
+def main(options):
+    dirpath = "var/" + time.strftime("%m%d") + "/" + options.name + "/"
 
-    print("Converting %s to wapiti datafiles..." % source_folder)
-    make_datafiles(source_folder)
-    make_patterns()
+    if not os.path.exists(dirpath):
+        os.makedirs(dirpath)
 
-    print("Training model...")
-    subprocess.call("wapiti train -p " + WAPITI_PATTERN_FILE + " " + WAPITI_TRAIN_FILE + " " + WAPITI_MODEL_FILE, shell=True)
+    if options.save:
+        print("[%s] Copying script.py..." % time.strftime("%H:%M:%S"))
+        subprocess.call("cp %s %sscript.py" % (sys.argv[0], dirpath), shell=True)
 
-    print("Applying model on test data...")
-    subprocess.call("wapiti label -m " + WAPITI_MODEL_FILE + " -p " + WAPITI_TEST_FILE + " " + WAPITI_RESULT_FILE, shell=True)
+    global WAPITI_TRAIN_FILE, WAPITI_TEST_FILE, WAPITI_GOLD_FILE, WAPITI_RESULT_FILE, WAPITI_MODEL_FILE, WAPITI_PATTERN_FILE
 
-    print("Checking...")
-    subprocess.call("wapiti label -m " + WAPITI_MODEL_FILE + " -p -c " + WAPITI_GOLD_FILE, shell=True)
+    WAPITI_TRAIN_FILE = dirpath + "train"
+    WAPITI_TEST_FILE = dirpath + "test"
+    WAPITI_GOLD_FILE = dirpath + "gold"
+    WAPITI_RESULT_FILE = dirpath + "result"
+    WAPITI_MODEL_FILE = dirpath + "model"
+    WAPITI_PATTERN_FILE = dirpath + "patterns"
 
-    evaluate()
+    if options.build:
+        print("[%s] Building datafiles..." % time.strftime("%H:%M:%S"))
+        make_datafiles(options.maximum, filter_observations=True)
+
+    if options.patterns:
+        print("[%s] Building pattern file..." % time.strftime("%H:%M:%S"))
+        make_patterns()
+
+    if options.train:
+        print("[%s] Training model..." % time.strftime("%H:%M:%S"))
+        subprocess.call("wapiti train -p %s %s %s" % (WAPITI_PATTERN_FILE, WAPITI_TRAIN_FILE, WAPITI_MODEL_FILE), shell=True)
+
+    if options.label:
+        print("[%s] Applying model on test data" % time.strftime("%H:%M:%S"))
+        subprocess.call("wapiti label -m %s -p %s %s" % (WAPITI_MODEL_FILE, WAPITI_TEST_FILE, WAPITI_RESULT_FILE) , shell=True)
+
+    if options.check:
+        print("[%s] Checking results..." % time.strftime("%H:%M:%S"))
+        subprocess.call("wapiti label -m %s -p -c %s" % (WAPITI_MODEL_FILE, WAPITI_GOLD_FILE), shell=True)
+
+    if options.evaluate:
+        print("[%s] Evaluating segmentation..." % time.strftime("%H:%M:%S"))
+        evaluate_segmentation()
 
 
-# Evaluates the results
-def evaluate():
-    g = ""
+# Evaluates the segmentation results
+def evaluate_segmentation():
+    g = data_to_string(WAPITI_GOLD_FILE) # gold string
+    r = data_to_string(WAPITI_RESULT_FILE) # result string
 
-    with codecs.open(WAPITI_GOLD_FILE, "r", "utf-8") as gold:
-        for line in gold:
+    avg = float(len(g)) / g.count("T") # average segment size
+    k = int(avg / 2) # window size for WindowDiff
+
+    b = ("T" + (int(avg) - 1) * ".") * int(math.ceil(float(len(g)) / int(avg)))
+    b = b[:len(g)]
+
+    # WindowDiff
+    wd_rs = (float(windowdiff(g, r, k, boundary="T")) / len(g)) * 100
+    wd_bl = (float(windowdiff(g, b, k, boundary="T")) / len(g)) * 100
+
+    # Beeferman's Pk
+    pk_rs = (pk(g, r, boundary="T")) * 100
+    pk_bl = (pk(g, b, boundary="T")) * 100
+
+    # Generalized Hamming Distance
+    ghd_rs = (ghd(g, r, boundary="T") / len(g)) * 100
+    ghd_bl = (ghd(g, b, boundary="T") / len(g)) * 100
+
+    print("#            \tResult:\tBase.:\tDiff.:")
+    print("# WindowDiff:\t%s%%\t%s%%\t%s" % (dec(wd_rs), dec(wd_bl), dec(wd_bl - wd_rs)))
+    print("# pk:        \t%s%%\t%s%%\t%s" % (dec(pk_rs), dec(pk_bl), dec(pk_bl - pk_rs)))
+    print("# ghd:       \t%s%%\t%s%%\t%s" % (dec(ghd_rs), dec(ghd_bl), dec(ghd_bl - ghd_rs)))
+    print("#")
+    print("#            \tResult:\tBase.:")
+    print("# seg. ratio:\tx%s\tx%s" % (dec(float(r.count("T")) / g.count("T")), dec(float(b.count("T")) / g.count("T"))))
+    print("#")
+    print("# gold:     %s" % g[:75])
+    print("# result:   %s" % r[:75])
+    print("# baseline: %s" % b[:75])
+
+
+# Formats a float
+def dec(f):
+    return "{0:.2f}".format(f)
+
+
+# Makes a string of labels
+def data_to_string(path):
+    s = ""
+
+    with codecs.open(path, "r", "utf-8") as f:
+        for line in f:
             if len(line) > 1:
                 tokens = line.split()
-                g += tokens[-1]
+                s += tokens[-1]
 
-    r = ""
-    
-    with codecs.open(WAPITI_RESULT_FILE, "r", "utf-8") as result:
-        for line in result:
-            if len(line) > 1:
-                tokens = line.split()
-                r += tokens[-1]
-
-    r = r.replace("F", ".")
-    g = g.replace("F", ".")
-
-    k = int(float(len(g)) / g.count("T"))
-
-    wd = windowdiff(g, r, k, boundary="T")
-
-    print("WindowDiff: %s" % wd)
-    print("gold:       %s" % g[:75])
-    print("result:     %s" % r[:75])
-
+    return s.replace("F", ".")
 
 # Writes wapiti datafiles
-def make_datafiles(source_folder):
-
-    train = True
-
-    wnl = WordNetLemmatizer()
-
+def make_datafiles(limit, filter_observations=False):
     with codecs.open(WAPITI_TRAIN_FILE, "w", "utf-8") as train_out:
         with codecs.open(WAPITI_TEST_FILE, "w", "utf-8") as test_out:
             with codecs.open(WAPITI_GOLD_FILE, "w", "utf-8") as gold_out:
+                train_limit = int(limit * 0.9)
 
-                print("Preprocessing...")
+                print("# preprocessing...")
 
+                train = True
                 progress = ProgressBar(maxval=limit).start()
 
-                for i, filename in enumerate(os.listdir(source_folder)):
-                    progress.update(i)
-                    if i == limit:
-                        break
-
-                    lines = tuple(codecs.open(source_folder + filename, "r", "utf-8"))
-                    for line_number, line in enumerate(lines):
-                        line = line.strip()
-
-                        if not line.startswith("#"):
-                            tokens = line.split()
-                            if len(tokens) > 1:
-                                label = tokens.pop(0)
-
-                                update_average_visual_features(tokens, line_number, len(lines))
-
-                progress.finish()
-                
-                print("Making datafiles...")
-
-                progress = ProgressBar(maxval=limit).start()
-
-                for i, filename in enumerate(os.listdir(source_folder)):
+                for i, filename in enumerate(os.listdir(DATA_FOLDER)):
                     progress.update(i)
                     if i == limit:
                         break
                     if i == train_limit:
                         train = False
 
-                    lines = tuple(codecs.open(source_folder + filename, "r", "utf-8"))
+                    prev_label = next_label = None
+                    
+                    lines = codecs.open(DATA_FOLDER + filename, "r", "utf-8").readlines()
+                    for line_number, line in enumerate(lines):
+                        line = line.strip()
+
+                        if not line.startswith("#"):
+                            tokens = line.split()
+                            if len(tokens) > 1:
+                                raw_label = tokens.pop(0)
+                                label = "T" if raw_label == "B" or raw_label == "BE" else "F"
+                                next_label = None
+
+                                if len(lines) > line_number + 1:
+                                    next_line = lines[line_number + 1].split()
+                                    if len(next_line) > 1:
+                                        next_label = next_line.pop(0)
+
+                                if raw_label != "I" or not filter_observations or not train or raw_label != prev_label or raw_label != next_label:
+                                    update_average_visual_features(tokens, line_number + 1, len(lines))
+
+                                prev_label = raw_label
+
+                progress.finish()
+                
+                print("# building train, test and gold datafiles...")
+                
+                wnl = WordNetLemmatizer()
+                train = True
+                progress = ProgressBar(maxval=limit).start()
+
+                for i, filename in enumerate(os.listdir(DATA_FOLDER)):
+                    progress.update(i)
+                    if i == limit:
+                        break
+                    if i == train_limit:
+                        train = False
+
+                    prev_label = next_label = None
+
+                    lines = codecs.open(DATA_FOLDER + filename, "r", "utf-8").readlines()
                     for line_number, line in enumerate(lines):
                         line = line.strip()
 
@@ -157,29 +216,38 @@ def make_datafiles(source_folder):
                             tokens = line.split()
 
                             if len(tokens) > 1:
-                                label = tokens.pop(0)
-                                tokens_lemmas_tags = [(token, wnl.lemmatize(clear_numbers(token.lower()), "v" if tag.startswith("V") else "n"), tag) for token, tag in nltk.pos_tag(tokens)]
+                                raw_label = tokens.pop(0)
+                                label = "T" if raw_label == "B" or raw_label == "BE" else "F"
+                                next_label = None
 
-                                features = ""
+                                if len(lines) > line_number + 1:
+                                    next_line = lines[line_number + 1].split()
+                                    if len(next_line) > 1:
+                                        next_label = next_line.pop(0)
 
-                                for j in [0, 1, 2, -3, -2, -1]:
-                                    if j >= len(tokens_lemmas_tags) or j < len(tokens_lemmas_tags) * -1:
-                                        features += "@NULL\t@NULL\t@NULL\t"
+                                if raw_label != "I" or not filter_observations or not train or raw_label != prev_label or raw_label != next_label:
+                                    tokens_lemmas_tags = [(token, wnl.lemmatize(clear_numbers(token.lower()), "v" if tag.startswith("V") else "n"), tag) for token, tag in nltk.pos_tag(tokens)]
+
+                                    features = ""
+
+                                    for j in [0, 1, 2, -3, -2, -1]:
+                                        if j >= len(tokens_lemmas_tags) or j < len(tokens_lemmas_tags) * -1:
+                                            features += "@NULL\t@NULL\t@NULL\t"
+                                        else:
+                                            token, lemma, tag = tokens_lemmas_tags[j]
+
+                                            features += "%s\t%s\t%s\t" % (token, lemma, tag)
+
+                                    for vf in build_visual_features(tokens_lemmas_tags, line_number + 1, len(lines)):
+                                        features += "%s\t" % vf
+
+                                    if train:
+                                        train_out.write("%s%s\n" % (features, label))
                                     else:
-                                        token, lemma, tag = tokens_lemmas_tags[j]
+                                        gold_out.write("%s%s\n" % (features, label))
+                                        test_out.write("%s\n" % features)
 
-                                        features += token + "\t" + lemma + "\t" + tag + "\t"
-
-                                for vf in build_visual_features(tokens_lemmas_tags, line_number, len(lines)):
-                                    features += vf + "\t"
-
-                                label = "T" if label == "B" or label == "BE" else "F"
-
-                                if train:
-                                    train_out.write(features + label + "\n")
-                                else:
-                                    gold_out.write(features + label + "\n")
-                                    test_out.write(features + "\n")
+                                prev_label = raw_label
 
                     if train:
                         train_out.write("\n")
@@ -338,16 +406,13 @@ def clear_numbers(s):
 
 # Computes and writes patterns
 def make_patterns():
-    print("Making patterns...")
-
-    progress = ProgressBar(maxval=353).start()
+    progress = ProgressBar(maxval=97).start()
 
     with codecs.open(WAPITI_PATTERN_FILE, "w", "utf-8") as out:
         i = 1
         progress.update(i)
 
-        # for col in progress(range(8, largest_sentence + 8)):
-        for off in xrange(-5, 6):
+        for off in xrange(-1, 2):
             off = str(off) if off < 1 else "+" + str(off)
 
             for base_col in xrange(0, 3):
@@ -373,21 +438,74 @@ def make_patterns():
     progress.finish()
 
 
-# Process argv
-def process_argv(argv):
-    if len(argv) != 2:
-        print("Usage: " + argv[0] + " <source folder>")
-        sys.exit()
-
-    # adding a "/" to the dirpath if not present
-    source_folder = argv[1] + "/" if not argv[1].endswith("/") else argv[1]
-
-    if not os.path.isdir(source_folder):
-        sys.exit(source_folder + " is not a directory")
-
-    return source_folder
-
-
 # Launch
 if __name__ == "__main__":
-    main(sys.argv)
+    op = OptionParser()
+
+    op.add_option("-s", "--save", 
+        dest="save", 
+        default=False, 
+        action="store_true",
+        help="saves a backup of the script in its current form")
+
+    op.add_option("-b", "--build", 
+        dest="build", 
+        default=False, 
+        action="store_true",
+        help="builds train, test and gold datafiles")
+
+    op.add_option("-p", "--patterns", 
+        dest="patterns", 
+        default=False, 
+        action="store_true",
+        help="builds a patterns file")
+
+    op.add_option("-t", "--train", 
+        dest="train", 
+        default=False, 
+        action="store_true",
+        help="trains and saves a model to file (-b required in current or previous run)")
+
+    op.add_option("-l", "--label", 
+        dest="label", 
+        default=False, 
+        action="store_true",
+        help="labels the test file and saves the result to file (-bt required in current or previous run)")
+
+    op.add_option("-c", "--check", 
+        dest="check", 
+        default=False, 
+        action="store_true",
+        help="displays P, R and F1 (-bt required in current or previous run)")
+
+    op.add_option("-e", "--evaluate", 
+        dest="evaluate", 
+        default=False, 
+        action="store_true",
+        help="prints segmentation metrics (-l required in current or previous run")
+
+    op.add_option("-a", "--all", 
+        dest="all", 
+        default=False, 
+        action="store_true",
+        help="switches all options on")
+
+    op.add_option("-m", "--maximum", 
+        dest="maximum",
+        type="int",
+        default=1000,
+        help="maximum number of instances (defaults to 1000)")
+
+    op.add_option("-n", "--name", 
+        dest="name",
+        help="experiment name (required)")
+
+    options, args = op.parse_args()
+
+    if options.name == None:
+        op.error("Set an experiment name with -n or --name")
+
+    if options.all:
+        options.save = options.check = options.train = options.build = options.patterns = options.label = options.evaluate = True
+
+    main(options)
