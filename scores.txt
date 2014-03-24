@@ -1,6 +1,36 @@
 
 ============================================================
 
+first_last_tokens_filter_i_occ_min_50pm_25k
+
+* Per label statistics
+    T       Pr=0.45  Rc=0.67  F1=0.54
+    F       Pr=0.91  Rc=0.79  F1=0.84
+* Done
+[15:08:57] Evaluating segmentation...
+#             Result: Base.:  Diff.:
+# WindowDiff: 59.44%  70.71%  11.26
+# pk:         14.73%  19.17%  4.44
+# ghd:        38.80%  46.93%  8.13
+#
+#             Result: Base.:
+# seg. ratio: x1.51 x1.24
+
+============================================================
+
+first_last_tokens_filter_i_25k
+
+#           Result: Base.:  Diff.:
+# WindowDiff: 57.22%  70.44%  13.22
+# pk:         13.92%  18.99%  5.08
+# ghd:        37.22%  46.65%  9.43
+
+#           Result: Base.:
+# seg. ratio: x1.47 x1.24
+
+
+============================================================
+
 first_last_tokens_filter_i
 
           Result: Base.:  Diff.:
