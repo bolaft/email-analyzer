@@ -146,10 +146,11 @@ def process_argv(argv):
         print("Usage: " + argv[0] + " <data folder> <ngram file>")
         sys.exit()
 
-    # adding a "/" to the dirpath if not present
+    # suffixing "/" to the dirpath if not present
     data_folder = argv[1] + "/" if not argv[1].endswith("/") else argv[1]
 
-    ngram_file = argv[2]
+    # previxing "./" to the dirpath if not present
+    ngram_file = "./" + argv[2] if not argv[2].startswith("./") and not argv[2].startswith("/") else argv[2]
 
     if not os.path.isdir(data_folder):
         sys.exit(data_folder + " is not a directory")

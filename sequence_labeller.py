@@ -39,7 +39,7 @@ from sklearn.naive_bayes import MultinomialNB
 
 
 # Data
-DATA_FOLDER = "data/ubuntu-users/email.message.tagged/"
+DATA_FOLDER = "data/email.message.tagged/"
 
 # HTML
 HTML_RESULT_FILE = None
@@ -96,12 +96,6 @@ def main(options, args):
 
     HTML_RESULT_FILE = dirpath + "export.html"
 
-    # BC3 paths
-    global BC3_TAGGED_FILE, BC3_LABELLED_FILE
-
-    BC3_TAGGED_FILE = dirpath + "bc3_tagged"
-    BC3_LABELLED_FILE = dirpath + "bc3_labelled"
-
     if options.patterns:
         print("[{0}] Building pattern file...".format(time.strftime("%H:%M:%S")))
         make_patterns()
@@ -109,7 +103,7 @@ def main(options, args):
     scores = []
 
     # filenames will be suffixed by fold
-    if not options.bc3:
+    if not options.bc3 and options.folds > 1:
         WAPITI_TRAIN_FILE += "_"
         WAPITI_TEST_FILE += "_"
         WAPITI_GOLD_FILE += "_"
@@ -118,7 +112,7 @@ def main(options, args):
 
     if options.build or options.train or options.label or options.check or options.evaluate:
         for fold, (train_files, test_files) in enumerate(generate_k_pairs(options.bc3, options.maximum, options.folds)):
-            if not options.bc3:
+            if not options.bc3 and options.folds > 1:
                 print("[{0}] Fold {1}/{2}...".format(time.strftime("%H:%M:%S"), fold + 1, options.folds))
 
                 WAPITI_TRAIN_FILE = update_filename(WAPITI_TRAIN_FILE, fold)
@@ -129,7 +123,7 @@ def main(options, args):
 
             if options.build:
                 print("[{0}] Building datafiles...".format(time.strftime("%H:%M:%S")))
-                make_datafiles(train_files, test_files, options.bc3, filter_observations=True, min_occurrences=(50 * (options.maximum / 1000)))
+                make_datafiles(train_files, test_files, options.bc3, filter_observations=True, only_initial=True, min_occurrences=(50 * (options.maximum / 1000)))
 
             if options.train:
                 print("[{0}] Training model...".format(time.strftime("%H:%M:%S")))
@@ -178,7 +172,7 @@ def generate_k_pairs(bc3, limit, folds):
         yield [], []
     elif folds == 1:
         max_train = int(float(len(data)) * 0.9);
-        yield data[:max_train], data[max_train]
+        yield data[:max_train], data[max_train:]
     else:
         for k in xrange(folds):
             train = [x for i, x in enumerate(data) if i % folds != k]
@@ -188,7 +182,7 @@ def generate_k_pairs(bc3, limit, folds):
 
 
 # Writes wapiti datafiles
-def make_datafiles(train_files, test_files, bc3=False, filter_observations=False, min_occurrences=0):
+def make_datafiles(train_files, test_files, bc3=False, filter_observations=False, only_initial=False, min_occurrences=0):
         with codecs.open(WAPITI_TRAIN_FILE, "w") as train_out:
             with codecs.open(WAPITI_TEST_FILE, "w") as test_out:
                 with codecs.open(WAPITI_GOLD_FILE, "w") as gold_out:
@@ -211,6 +205,8 @@ def make_datafiles(train_files, test_files, bc3=False, filter_observations=False
 
                         for line_number, line in enumerate(lines):
                             line = line.strip()
+
+                            message_id = mime = encoding = is_initial = from_address = from_personal = to_address = to_personal = None
 
                             if not line.startswith("#"): # ignores file header
                                 tokens = line.split()
@@ -257,6 +253,24 @@ def make_datafiles(train_files, test_files, bc3=False, filter_observations=False
                                             test_out.write("{0}\n".format(features))
 
                                     prev_label = raw_label
+                            else:
+                                metadata = line[2:].split("\t")
+                                if len(metadata) == 8:
+                                    message_id = metadata[0]
+                                    mime = metadata[1]
+                                    encoding = metadata[2]
+                                    is_initial = metadata[3]
+                                    from_address = metadata[4]
+                                    from_personal = metadata[5]
+                                    to_address = metadata[6]
+                                    to_personal = metadata[7]
+
+                                    if is_initial == "false" and only_initial:
+                                        break
+                                elif len(metadata) != 1:
+                                    sys.exit("# error: wrong metadata")
+                                    print metadata
+                                    print len(metadata)
 
                         if filename in train_files:
                             train_out.write("\n")
@@ -633,7 +647,7 @@ def evaluate_bow():
         "unsegmented": []
     }
 
-    all_choices = [] # all choices made
+    all_choices = [] # segmentedall choices made
     choices = [] # choices for the current segment
     nb = 1 # number of lines in the segment
    
@@ -720,7 +734,7 @@ def merge_bow(a, b):
 
     return b
 
-
+    
 # Launch
 if __name__ == "__main__":
     op = OptionParser(usage="usage: %prog [options] experiment_name")
