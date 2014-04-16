@@ -21,14 +21,30 @@ from progressbar import ProgressBar
 
 import nltk
 
-import math
 import sys
 import codecs
 import os
 import hashlib
 import re
-import operator
 
+
+# Parameters
+ONLY_INITIAL = True # keep only the first message of each thread
+ONLY_UTF8 = True # filter out payloads not encoded in utf-8
+ONLY_TEXT_PLAIN = True # filter out xml and html payloads
+FILTER_OBSERVATIONS = False # ignores multiple consecutive observations with "I" label in training
+OCCURRENCE_THRESHOLD_QUOTIENT = 0.075 # ignores words which occur less than once per (quotient * len(train)) messages
+
+# Data
+DATA_FOLDER = "data/email.message.tagged/" # folder where heuristically labelled emails are stored
+TEXT_TILING_FOLDER = "data/TT/ubuntu-users/" # folder where emails labelled by text-tiling are stored
+NGRAM_FILE = "ngrams"
+ARFF_FILE = "dataset.arff"
+
+# Misc.
+ngrams = []
+min_occurrences = 0
+standard_deviation = standard_average = None
 
 # Constants
 visual_feature_list = [
@@ -64,11 +80,9 @@ visual_feature_list = [
 
 # Main
 def main(argv):
-    data_folder, ngram_file, arff_file = process_argv(argv)
-
     # reading imposed ngram list
     
-    imposed_ngrams = [ngram.strip() for ngram in tuple(codecs.open(ngram_file, "r", "utf-8"))]
+    imposed_ngrams = [ngram.strip() for ngram in tuple(codecs.open(NGRAM_FILE, "r"))]
 
     imposed_ngrams_feature_list = [(ngram, "integer") for ngram in imposed_ngrams]
 
@@ -91,7 +105,7 @@ def main(argv):
     # 
     # [("B", ["token", "tnkoe", "ekotn", ...], 1), ...]
 
-    data = load_data(data_folder, 25000, filter_i=True)
+    data = load_data()
 
     # building dataset
     
@@ -148,42 +162,12 @@ def main(argv):
         dataset[sid]["features"] = features
 
     #################################################################################
-    
-    # print("selecting features...")
-
-    # best_scores = {}
-
-    # progress = ProgressBar()
-
-    # for i, blob in enumerate(progress(blobs)):
-    #     sid = make_sid(blob)
-
-    #     blob_ngrams = blob.tokens + extract_bigrams(blob)
-    #     blob_ngrams = [ngram.encode("utf-8") for ngram in blob_ngrams]
-
-    #     for ngram in blob_ngrams:
-    #         tokens = [t.encode("utf-8") for t in blob.tokens]
-    #         tf = float(" ".join(tokens).count(ngram)) / len(blob.tokens)
-    #         idf = math.log(len(blobs) / n_containing[ngram])
-    #         tf_idf = tf * idf
-
-    #         dataset[sid]["features"][ngram] = tf_idf
-
-    #         if not ngram in best_scores or best_scores[ngram] < tf_idf:
-    #             best_scores[ngram] = tf_idf
-    
-    # sorted_scores = sorted(best_scores.iteritems(), key=operator.itemgetter(1)) # sorting scores by order of tf_idf
-    
-    # for ngram, best_tf_idf in sorted_scores[:len(ngrams)]: # keeping only the best 0.1%
-    #     feature_list.append((ngram, "real"))
-
-    #################################################################################
 
     # writing arff file
     
-    print("compiling and exporting data to " + arff_file + "...")
+    print("compiling and exporting data to " + ARFF_FILE + "...")
 
-    write_arff(dataset, set(feature_list), arff_file)
+    write_arff(dataset, feature_list)
 
     print("export successful")
 
@@ -288,7 +272,7 @@ def build_visual_features(visual_feature_list, previous_sentence, sentence, next
 
 
 # Writes arff files
-def write_arff(dataset, feature_list, filename, test=False):
+def write_arff(dataset, feature_list):
     with codecs.open(filename, "w", "utf-8") as out:
         # writes header
         out.write("@relation " + filename.replace(".arff", "").replace(".", "-") + "\n\n")
@@ -313,8 +297,7 @@ def write_arff(dataset, feature_list, filename, test=False):
                 if not i == len(feature_list) - 1:
                     out.write(",")
 
-            if not test:
-                out.write("," + dataset[sid]["label"])
+            out.write("," + dataset[sid]["label"])
 
             out.write("\n")
 
@@ -325,10 +308,10 @@ def replace_special_chars(str, replace):
 
 
 # Loads data from tagged email files
-def load_data(folder, max_lines, filter_i=False):
+def load_data(max_lines, filter_i=False):
     data = []
 
-    print("loading data from " + folder + "...")
+    print("loading data from " + DATA_FOLDER + "...")
 
     progress = ProgressBar(maxval=max_lines).start()
 
@@ -336,8 +319,8 @@ def load_data(folder, max_lines, filter_i=False):
 
     # prev_label_boolean = prev_label = None
 
-    for filename in os.listdir(folder):
-        for i, line in enumerate(tuple(codecs.open(folder + filename, "r", "utf-8"))):
+    for filename in os.listdir(DATA_FOLDER):
+        for i, line in enumerate(tuple(codecs.open(DATA_FOLDER + filename, "r", "utf-8"))):
             line = line.strip()
             if not line.startswith("#"):
                 tokens = line.split()
@@ -365,32 +348,6 @@ def load_data(folder, max_lines, filter_i=False):
     progress.finish()
 
     return data
-
-
-# Process argv
-def process_argv(argv):
-    if len(argv) != 4:
-        print("Usage: " + argv[0] + " <data folder> <ngram file> <arff file>")
-        sys.exit()
-
-    # adding a "/" to the dirpath if not present
-    data_folder = argv[1] + "/" if not argv[1].endswith("/") else argv[1]
-
-    ngram_file = argv[2]
-
-    # adding a .arff extension if it was not specified
-    arff_file = argv[3] + ".arff" if not argv[3].endswith(".arff") else argv[3]
-
-    if not os.path.isdir(data_folder):
-        sys.exit(data_folder + " is not a directory")
-
-    if not os.path.isfile(ngram_file):
-        sys.exit(ngram_file + " is not a file")
-
-    if not os.access(os.path.dirname(arff_file), os.W_OK) or os.path.isdir(arff_file):
-        sys.exit(arff_file + " is not writable as a file")
-
-    return data_folder, ngram_file, arff_file
 
 
 # Launch

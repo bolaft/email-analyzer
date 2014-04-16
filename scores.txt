@@ -1,4 +1,116 @@
 
+
+===========================================================
+
+TT full 7k
+
+#             Result:   Base.:  Diff.:    T.T.: Diff.:
+# WindowDiff: 46.44%    59.88%  -13.44%   40.93 5.51
+# pk:         11.49%    18.12%  -6.63%    6.96  4.53
+# ghd:        40.94%    51.42%  -10.48%   38.10 2.84
+#
+#             Result:   Base.:  Diff.:    T.T.: Diff.:
+# accuracy:   73.49%    54.83%  18.66%    77.75 -4.25
+#
+#             Result:   Base.:  Diff.:    T.T.: Diff.:
+# precision:  57.84%    33.30%  24.54%    77.05 -19.21
+# recall:     69.63%    39.33%  30.30%    45.29 24.35
+# F1:         63.17%    35.81%  27.36%    57.02 6.15
+#
+#             Result: Base.:  T.T.:
+# seg. ratio: x1.21 x1.18 x0.59
+
+===========================================================
+
+WITH 100 ngram features 1k
+
+#             Result:   Base.:  Diff.:    T.T.: Diff.:
+# WindowDiff: 44.50%    61.95%  -17.45%   40.46 4.05
+# pk:         14.63%    22.12%  -7.49%    8.20  6.43
+# ghd:        38.05%    51.07%  -13.02%   37.29 0.76
+#
+#             Result:   Base.:  Diff.:    T.T.: Diff.:
+# accuracy:   73.32%    57.02%  16.31%    78.38 -5.06
+#
+#             Result:   Base.:  Diff.:    T.T.: Diff.:
+# precision:  54.98%    31.06%  23.92%    75.56 -20.57
+# recall:     66.67%    34.17%  32.50%    42.50 24.17
+# F1:         60.26%    32.54%  27.72%    54.40 5.86
+#
+#             Result: Base.:  T.T.:
+# seg. ratio: x1.21 x1.10 x0.56
+
+===========================================================
+
+NO ngram features 1k
+
+#             Result:   Base.:  Diff.:    T.T.: Diff.:
+# WindowDiff: 46.02%    61.95%  -15.93%   40.46 5.56
+# pk:         14.77%    22.12%  -7.35%    8.20  6.57
+# ghd:        40.71%    51.07%  -10.37%   37.29 3.41
+#
+#             Result:   Base.:  Diff.:    T.T.: Diff.:
+# accuracy:   72.69%    57.02%  15.68%    78.38 -5.69
+#
+#             Result:   Base.:  Diff.:    T.T.: Diff.:
+# precision:  54.23%    31.06%  23.16%    75.56 -21.33
+# recall:     64.17%    34.17%  30.00%    42.50 21.67
+# F1:         58.78%    32.54%  26.24%    54.40 4.38
+#
+#             Result: Base.:  T.T.:
+# seg. ratio: x1.18 x1.10 x0.56
+
+
+===========================================================
+
+full_tt
+
+# Cross-validation:
+#
+#             Result:   Base.:  Diff.:    TT.:  Diff.:
+# WindowDiff: 45.78%    59.88%  -14.10%   40.93 4.84
+# pk:         10.97%    18.12%  -7.15%    6.96  4.02
+# ghd:        39.80%    51.42%  -11.62%   38.10 1.70
+#
+#             Result:   Base.:  Diff.:    TT.:  Diff.:
+# accuracy:   73.49%    54.83%  18.66%    77.75 -4.25
+#
+#             Result:   Base.:  Diff.:    TT.:  Diff.:
+# precision:  58.47%    33.30%  25.16%    77.05 -18.59
+# recall:     65.06%    39.33%  25.73%    45.29 19.77
+# F1:         61.56%    35.81%  25.75%    57.02 4.54
+#
+#             Result: Base.:  TT.:
+# seg. ratio: x1.11 x1.18 x0.59
+
+
+============================================================
+
+standard_dev_30k
+
+dataset_size: 6967/30000
+98 ignored messages
+average = 15
+standard deviation = 82
+
+# Cross-validation:
+#
+#             Result: Base.:  Diff.:
+# WindowDiff: 46.00%  59.88%  -13.88
+# pk:         11.18%  18.12%  -6.94
+# ghd:        40.23%  51.42%  -11.19
+#
+#             Result: Base.:  Diff.:
+# accuracy:   73.24%  54.83%  18.41
+#
+#             Result: Base.:  Diff.:
+# precision:  57.98%  33.30%  24.68
+# recall:     65.62%  39.33%  26.28
+# F1:         61.53%  35.81%  25.71
+#
+#             Result: Base.:
+# seg. ratio: x1.13 x1.18
+
 ============================================================
 
 first_last_tokens_filter_i_occ_min_50pm_25k

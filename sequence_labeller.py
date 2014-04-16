@@ -40,15 +40,16 @@ from sklearn.naive_bayes import MultinomialNB
 
 
 # Parameters
-ONLY_INITIAL = True
-ONLY_UTF8 = True
-ONLY_TEXT_PLAIN = True
-FILTER_OBSERVATIONS = True
-OCCURRENCE_THRESHOLD_QUOTIENT = 0.05
+ONLY_INITIAL = True # keep only the first message of each thread
+ONLY_UTF8 = True # filter out payloads not encoded in utf-8
+ONLY_TEXT_PLAIN = True # filter out xml and html payloads
+FILTER_OBSERVATIONS = False # ignores multiple consecutive observations with "I" label in training
+OCCURRENCE_THRESHOLD_QUOTIENT = 0.075 # ignores words which occur less than once per (quotient * len(train)) messages
 
 # Data
-DATA_FOLDER = "data/email.message.tagged/"
-TEXT_TILING_FOLDER = "data/TT/ubuntu-users/"
+DATA_FOLDER = "data/email.message.tagged/" # folder where heuristically labelled emails are stored
+TEXT_TILING_FOLDER = "data/TT/ubuntu-users/" # folder where emails labelled by text-tiling are stored
+NGRAM_FILE = "ngrams"
 
 # Scores
 HTML_RESULT_FILE = TEXT_RESULT_FILE = None
@@ -62,6 +63,9 @@ BC3_TEXT_TILING_FILE = "data/bc3/bc3_text_tiling"
 WAPITI_TRAIN_FILE = WAPITI_TEST_FILE = WAPITI_GOLD_FILE = WAPITI_RESULT_FILE = WAPITI_MODEL_FILE = WAPITI_PATTERN_FILE = None
 
 # Constants
+
+ngrams = []
+
 min_occurrences = 0
 
 standard_deviation = standard_average = None
@@ -89,6 +93,12 @@ def main(options, args):
     # Makes the folder if it does not exist already
     if not os.path.exists(dirpath):
         os.makedirs(dirpath)
+    
+    # Reads ngram list
+    if options.ngrams:
+        print("[{0}] Extracting ngrams from list...".format(time.strftime("%H:%M:%S")))
+        global ngrams
+        ngrams = [ngram.strip() for ngram in tuple(codecs.open(NGRAM_FILE, "r"))]
 
     # Makes a copy of the script for future reference
     if options.save:
@@ -118,20 +128,25 @@ def main(options, args):
 
     if options.patterns:
         print("[{0}] Building pattern file...".format(time.strftime("%H:%M:%S")))
-        make_patterns()
+        make_patterns(tt=options.text_tiling)
 
     scores = []
 
     # filenames will be suffixed by fold
     if not options.bc3 and options.folds > 1:
-        WAPITI_TRAIN_FILE += "_"
-        WAPITI_TEST_FILE += "_"
-        WAPITI_GOLD_FILE += "_"
+        WAPITI_TRAIN_FILE  += "_"
+        WAPITI_TEST_FILE   += "_"
+        WAPITI_GOLD_FILE   += "_"
         WAPITI_RESULT_FILE += "_"
-        WAPITI_MODEL_FILE += "_"
+        WAPITI_MODEL_FILE  += "_"
 
     if options.build or options.train or options.label or options.check or options.evaluate:
-        for fold, (train_files, test_files) in enumerate(generate_k_pairs(options.bc3, options.maximum, options.folds, only_initial=ONLY_INITIAL, only_utf8=ONLY_UTF8, only_text_plain=ONLY_TEXT_PLAIN)):
+        # for each fold (if any), a training and a testing dataset are computed
+        for fold, (train_files, test_files) in enumerate(generate_k_pairs(
+                options.bc3, options.maximum, options.folds, 
+                only_initial=ONLY_INITIAL, only_utf8=ONLY_UTF8, only_text_plain=ONLY_TEXT_PLAIN
+        )):
+            # if there are multiple folds, wapiti filenames change at each iteration
             if not options.bc3 and options.folds > 1:
                 print("[{0}] Fold {1}/{2}...".format(time.strftime("%H:%M:%S"), fold + 1, options.folds))
 
@@ -145,7 +160,7 @@ def main(options, args):
                 print("[{0}] Building datafiles...".format(time.strftime("%H:%M:%S")))
 
                 global min_occurrences
-                min_occurrences = options.maximum * OCCURRENCE_THRESHOLD_QUOTIENT
+                min_occurrences = len(train_files) * OCCURRENCE_THRESHOLD_QUOTIENT
 
                 make_datafiles(train_files, test_files, options.bc3, filter_observations=True)
 
@@ -163,13 +178,14 @@ def main(options, args):
 
             if options.evaluate:
                 print("[{0}] Computing scores...".format(time.strftime("%H:%M:%S")))
-                evaluation = evaluate_segmentation(test_files, bc3=options.bc3)
+                evaluation = evaluate_segmentation(bc3=options.bc3)
                 scores.append(evaluation)
                 write_evaluation(fold, evaluation)
 
             if options.bc3:
                 break;
 
+    # evaluation of a segmentation's impact on a bag-of-word classification task
     if options.bow:
         evaluate_bow()
 
@@ -197,13 +213,16 @@ def generate_k_pairs(bc3, limit, folds, only_initial=False, only_utf8=False, onl
 
     print("# verifying data files...")
 
+    # iterates through files in the data folder
     for filename in progress(os.listdir(DATA_FOLDER)):
         if len(data) == limit:
             break
 
+        # reads and splits a file into lines
         lines = codecs.open(DATA_FOLDER + filename, "r").readlines()
 
         for line in lines:
+            # "#" prefixed lines contain metadata
             if line.startswith("#"):
                 metadata = line[2:].split("\t")
 
@@ -251,12 +270,11 @@ def generate_k_pairs(bc3, limit, folds, only_initial=False, only_utf8=False, onl
 
 # Writes wapiti datafiles
 def make_datafiles(train_files, test_files, bc3=False, filter_observations=False):
-    cnt = 0
+    skipped = 0 # skipped emails counter
 
     with codecs.open(WAPITI_TRAIN_FILE, "w") as train_out:
         with codecs.open(WAPITI_TEST_FILE, "w") as test_out:
             with codecs.open(WAPITI_GOLD_FILE, "w") as gold_out:
-
                 preprocess(train_files, filter_observations) # preprocessing...
                
                 print("# building train, test and gold datafiles...")
@@ -268,14 +286,17 @@ def make_datafiles(train_files, test_files, bc3=False, filter_observations=False
                 # iterates over email.message.tagged files
                 for i, filename in enumerate(train_files + test_files):
                     progress.update(i)
+
                     prev_label = next_label = None
                    
                     # if not building train file, checks if the gold and test files should be made from the bc3 corpus
-                    lines = codecs.open(DATA_FOLDER + filename, "r").readlines() if not (bc3 and filename in test_files) else codecs.open(BC3_TAGGED_FILE, "r").readlines()
+                    lines = codecs.open(DATA_FOLDER + filename, "r").readlines() if not (
+                        bc3 and filename in test_files
+                    ) else codecs.open(BC3_TAGGED_FILE, "r").readlines()
 
                     # heuristic: messages of more than n lines are ignored in order to avoid large copy/pasted content such as command outputs
                     if len(lines) > standard_deviation + standard_average and not (filename in test_files and bc3):
-                        cnt += 1
+                        skipped += 1
                         continue
 
                     for line_number, line in enumerate(lines):
@@ -304,7 +325,10 @@ def make_datafiles(train_files, test_files, bc3=False, filter_observations=False
                                         next_label = next_line.pop(0)
 
                                 if raw_label != "I" or not filter_observations or not filename in train_files or raw_label != prev_label or raw_label != next_label:
-                                    tokens_lemmas_tags = [(token, wnl.lemmatize(clear_numbers(token.lower()), "v" if tag.startswith("V") else "n"), tag) for token, tag in pos_tag(tokens)]
+                                    tokens_lemmas_tags = [
+                                        (token, wnl.lemmatize(clear_numbers(token.lower()), "v" if tag.startswith("V") else "n"), tag) 
+                                            for token, tag in pos_tag(tokens)
+                                    ]
 
                                     features = ""
 
@@ -319,15 +343,21 @@ def make_datafiles(train_files, test_files, bc3=False, filter_observations=False
                                     for vf in build_visual_features(tokens_lemmas_tags, line_number + 1, len(lines)):
                                         features += "{0}\t".format(vf)
 
+                                    # getting the corresponding text tiling label
+                                    tt_lines = codecs.open(TEXT_TILING_FOLDER + filename, "r").readlines()
+                                    tt_line = tt_lines[line_number - 3]
+                                    tt_label = tt_line.strip().split().pop(0)
+
+                                    for ngram in ngrams:
+                                        ngram_feature = "TRUE" if line.count(ngram) > 0 else "FALSE"
+                                        features += "{0}\t".format(ngram_feature)
+
+                                    features += "{0}\t".format(tt_label)
+
                                     if filename in train_files:
                                         train_out.write("{0}{1}\n".format(features, label))
                                     else:
-                                        # getting the corresponding text tiling label
-                                        tt_lines = codecs.open(TEXT_TILING_FOLDER + filename, "r").readlines()
-                                        tt_line = tt_lines[line_number - 3]
-                                        tt_label = tt_line.strip().split().pop(0)
-
-                                        gold_out.write("{0}{1}\t{2}\n".format(features, tt_label, label))
+                                        gold_out.write("{0}{1}\n".format(features, label))
                                         test_out.write("{0}\n".format(features))
 
                                 prev_label = raw_label
@@ -340,7 +370,9 @@ def make_datafiles(train_files, test_files, bc3=False, filter_observations=False
 
                 progress.finish()
 
-    print("# {0} messages were ignored (over standard deviation length plus average length, i.e. {1} + {2} = {3})".format(cnt, standard_deviation, standard_average, standard_deviation + standard_average))
+    print("# {0} messages were ignored (over standard deviation length plus average length, i.e. {1} + {2} = {3})".format(
+        skipped, standard_deviation, standard_average, standard_deviation + standard_average)
+    )
 
 
 # Preprocessing
@@ -454,10 +486,14 @@ def build_visual_features(tokens_lemmas_tags, line_number, total_lines):
     features.append("has_early_punctuation" if first_punctuation_position < 4 else "no_early_punctuation")
 
     # has interrogating word
-    features.append("has_interrogating_word" if not set([token.lower() for token in tokens]).isdisjoint(["who", "when", "where", "what", "which", "what", "how"]) else "no_interrogating_word")
+    features.append("has_interrogating_word" if not set([token.lower() for token in tokens]).isdisjoint(
+        ["who", "when", "where", "what", "which", "what", "how"]
+    ) else "no_interrogating_word")
 
     # starts with interrogating form
-    features.append("starts_with_interrogating_form" if tokens[0].lower() in ["who", "when", "where", "what", "which", "what", "how", "is", "are", "am", "will", "do", "does", "have", "has"] else "does_not_start_with_interrogating_form")
+    features.append("starts_with_interrogating_form" if tokens[0].lower() in [
+        "who", "when", "where", "what", "which", "what", "how", "is", "are", "am", "will", "do", "does", "have", "has"
+    ] else "does_not_start_with_interrogating_form")
 
     # first verb form
     first_verb_form = "NO_VERB"
@@ -482,7 +518,7 @@ def build_visual_features(tokens_lemmas_tags, line_number, total_lines):
     features.append("contains_modal_word" if any(ngram in line_lower for ngram in [
         "may", "must", "musn" "shall", "shan" "will", "might", "should", "would", "could"
     ]) else "does_not_contain_modal_word")
-   
+
     # contains plan phrase
     features.append("contains_plan_phrase" if any(ngram in line_lower for ngram in [
         "i will", "i am going to", "we will", "we are going to", "i plan to", "we plan to"
@@ -492,12 +528,12 @@ def build_visual_features(tokens_lemmas_tags, line_number, total_lines):
     features.append("contains_first_person_mark" if any(ngram in line_lower for ngram in [
         "me", "us", "i", "we", "my", "mine", "myself", "ourselves"
     ]) else "does_not_contain_first_person_mark")
-   
+
     # contains second person mark
     features.append("contains_second_person_mark" if any(ngram in line_lower for ngram in [
         "you", "your", "yours", "yourself", "yourselves"
     ]) else "does_not_contain_second_person_mark")
-   
+
     # contains third person mark
     features.append("contains_third_person_mark" if any(ngram in line_lower for ngram in [
         "he", "she", "they", "his", "their", "hers", "him", "her", "them"
@@ -514,14 +550,14 @@ def update_average_visual_features(tokens, line_number, total_lines):
 
     instances += 1
 
-    avg["position"] += float(line_number) / total_lines
-    avg["number_of_tokens"] += len(tokens)
-    avg["number_of_characters"] += len(line)
-    avg["number_of_quote_symbols"] += line.count(">")
-    avg["average_token_length"] += sum(map(len, tokens)) / float(len(tokens))
-    avg["proportion_of_uppercase_characters"] += float(sum(x.isupper() for x in line)) / len(line)
+    avg["position"]                            += float(line_number) / total_lines
+    avg["number_of_tokens"]                    += len(tokens)
+    avg["number_of_characters"]                += len(line)
+    avg["number_of_quote_symbols"]             += line.count(">")
+    avg["average_token_length"]                += sum(map(len, tokens)) / float(len(tokens))
+    avg["proportion_of_uppercase_characters"]  += float(sum(x.isupper() for x in line)) / len(line)
     avg["proportion_of_alphabetic_characters"] += float(sum(x.isalpha() for x in line)) / len(line)
-    avg["proportion_of_numeric_characters"] += float(sum(x.isdigit() for x in line)) / len(line)
+    avg["proportion_of_numeric_characters"]    += float(sum(x.isdigit() for x in line)) / len(line)
 
 
 # Transforms a numeric value into a string feature
@@ -546,47 +582,50 @@ def clear_numbers(s):
 
 
 # Computes and writes patterns
-def make_patterns():
-    progress = ProgressBar(maxval=127).start()
+def make_patterns(tt=False):
+    progress = ProgressBar(maxval=10).start()
+    tt_offset = 1 if tt else 0
 
     with codecs.open(WAPITI_PATTERN_FILE, "w") as out:
         i = 1
-        progress.update(i)
 
-        for off in xrange(-1, 2):
+        for off in xrange(-5, 6):
+            progress.update(off + 5)
+
             off = str(off) if off < 1 else "+" + str(off)
 
-            for base_col in xrange(0, 3):
-                out.write("*{0}:%x[{1},{2}]\n".format(i, off, base_col)) # unigram 1
-                i += 1
-                out.write("*{0}:%x[{1},{2}]\n".format(i, off, base_col + 3)) # unigram 2
-                i += 1
-                out.write("*{0}:%x[{1},{2}]\n".format(i, off, base_col + 6)) # unigram 3
-                i += 1
-                out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]\n".format(i, off, base_col, base_col + 3)) # bigram 1
-                i += 1
-                out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]\n".format(i, off, base_col + 3, base_col + 6)) # bigram 2
-                i += 1
-                out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]/%x[{1},{4}]\n".format(i, off, base_col, base_col + 3, base_col + 6)) # trigram
-                i += 1
+            for offset in [0, 9]:
+                for off_col in xrange(0, 3):
+                    base_col = off_col + offset
 
-                progress.update(i)
+                    out.write("*{0}:%x[{1},{2}]\n".format(i, off, base_col)) # unigram 1
+                    i += 1
+                    out.write("*{0}:%x[{1},{2}]\n".format(i, off, base_col + 3)) # unigram 2
+                    i += 1
+                    out.write("*{0}:%x[{1},{2}]\n".format(i, off, base_col + 6)) # unigram 3
+                    i += 1
+                    out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]\n".format(i, off, base_col, base_col + 3)) # bigram 1
+                    i += 1
+                    out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]\n".format(i, off, base_col + 3, base_col + 6)) # bigram 2
+                    i += 1
+                    out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]/%x[{1},{4}]\n".format(i, off, base_col, base_col + 3, base_col + 6)) # trigram
+                    i += 1
 
-            out.write("\n")
+                out.write("\n")
 
-            for col in xrange(18, 42):
+            for col in xrange(18, 42 + len(ngrams) + tt_offset):
                 out.write("*{0}:%x[{1},{2}]\n".format(i, off, col))
                 i += 1
-               
-                progress.update(i)
 
             out.write("\n")
-   
+
     progress.finish()
+
+    print("# %s patterns built" % i)
 
 
 # Evaluates the segmentation results
-def evaluate_segmentation(test_files, bc3=False, limit=1000):
+def evaluate_segmentation(bc3=False, limit=0):
     g = data_to_string(WAPITI_GOLD_FILE, limit=limit) # gold string
     r = data_to_string(WAPITI_RESULT_FILE, limit=limit) # result string
 
@@ -602,14 +641,14 @@ def evaluate_segmentation(test_files, bc3=False, limit=1000):
     b = b[:len(g)] # baseline string
 
     # WindowDiff
-    wd_rs = (float(windowdiff(g, r, k, boundary="T")) / len(g)) * 100
-    wd_bl = (float(windowdiff(g, b, k, boundary="T")) / len(g)) * 100
-    wd_tt = (float(windowdiff(g, t, k, boundary="T")) / len(g)) * 100
+    wdi_rs = (float(windowdiff(g, r, k, boundary="T")) / len(g)) * 100
+    wdi_bl = (float(windowdiff(g, b, k, boundary="T")) / len(g)) * 100
+    wdi_tt = (float(windowdiff(g, t, k, boundary="T")) / len(g)) * 100
 
     # Beeferman's Pk
-    pk_rs = (pk(g, r, boundary="T")) * 100
-    pk_bl = (pk(g, b, boundary="T")) * 100
-    pk_tt = (pk(g, t, boundary="T")) * 100
+    bpk_rs = (pk(g, r, boundary="T")) * 100
+    bpk_bl = (pk(g, b, boundary="T")) * 100
+    bpk_tt = (pk(g, t, boundary="T")) * 100
 
     # Generalized Hamming Distance
     ghd_rs = (ghd(g, r, boundary="T") / len(g)) * 100
@@ -622,28 +661,38 @@ def evaluate_segmentation(test_files, bc3=False, limit=1000):
     acc_tt = accuracy(list(g), list(t)) * 100
 
     # precision, recall, f-measure
-    pr_rs = metrics.precision_score(list(g), list(r)) * 100
-    re_rs = metrics.recall_score(list(g), list(r)) * 100
-    f1_rs = (2.0 * (re_rs * pr_rs)) / (re_rs + pr_rs)
+    pre_rs = metrics.precision_score(list(g), list(r)) * 100
+    rec_rs = metrics.recall_score(list(g), list(r)) * 100
+    f_1_rs = (2.0 * (rec_rs * pre_rs)) / (rec_rs + pre_rs)
 
-    pr_bl = metrics.precision_score(list(g), list(b)) * 100
-    re_bl = metrics.recall_score(list(g), list(b)) * 100
-    f1_bl = (2.0 * (re_bl * pr_bl)) / (re_bl + pr_bl)
+    pre_bl = metrics.precision_score(list(g), list(b)) * 100
+    rec_bl = metrics.recall_score(list(g), list(b)) * 100
+    f_1_bl = (2.0 * (rec_bl * pre_bl)) / (rec_bl + pre_bl)
     
-    pr_tt = metrics.precision_score(list(g), list(t)) * 100
-    re_tt = metrics.recall_score(list(g), list(t)) * 100
-    f1_tt = (2.0 * (re_tt * pr_tt)) / (re_tt + pr_tt)
+    pre_tt = metrics.precision_score(list(g), list(t)) * 100
+    rec_tt = metrics.recall_score(list(g), list(t)) * 100
+    f_1_tt = (2.0 * (rec_tt * pre_tt)) / (rec_tt + pre_tt)
 
-    return acc_rs, acc_bl, acc_tt, pr_rs, pr_bl, pr_tt, re_rs, re_bl, re_tt, f1_rs, f1_bl, f1_tt, wd_rs, wd_bl, wd_tt, pk_rs, pk_bl, pk_tt, ghd_rs, ghd_bl, ghd_tt, g.count("T"), b.count("T"), r.count("T"), t.count("T")
+    return acc_rs, acc_bl, acc_tt, pre_rs, pre_bl, pre_tt, rec_rs, rec_bl, rec_tt, f_1_rs, f_1_bl, f_1_tt, wdi_rs, wdi_bl, wdi_tt, bpk_rs, bpk_bl, bpk_tt, ghd_rs, ghd_bl, ghd_tt, g.count("T"), b.count("T"), r.count("T"), t.count("T")
 
 
 # Writes evaluation to file
 def write_evaluation(fold, evaluation):
-    acc_rs, acc_bl, acc_tt, pr_rs, pr_bl, pr_tt, re_rs, re_bl, re_tt, f1_rs, f1_bl, f1_tt, wd_rs, wd_bl, wd_tt, pk_rs, pk_bl, pk_tt, ghd_rs, ghd_bl, ghd_tt, g_count, b_count, r_count, t_count = evaluation
+    acc_rs, acc_bl, acc_tt, pre_rs, pre_bl, pre_tt, rec_rs, rec_bl, rec_tt, f_1_rs, f_1_bl, f_1_tt, wdi_rs, wdi_bl, wdi_tt, bpk_rs, bpk_bl, bpk_tt, ghd_rs, ghd_bl, ghd_tt, gcount, bcount, rcount, tcount = evaluation
     
     with codecs.open(TEXT_RESULT_FILE, "a+") as out:
         out.write("\n# fold %s\n" % fold)
-        out.write(scores_to_string(acc_rs, acc_bl, acc_tt, pr_rs, pr_bl, pr_tt, re_rs, re_bl, re_tt, f1_rs, f1_bl, f1_tt, wd_rs, wd_bl, wd_tt, pk_rs, pk_bl, pk_tt, ghd_rs, ghd_bl, ghd_tt, g_count, b_count, r_count, t_count))
+
+        out.write(scores_to_string(
+            acc_rs, acc_bl, acc_tt,
+            pre_rs, pre_bl, pre_tt,
+            rec_rs, rec_bl, rec_tt,
+            f_1_rs, f_1_bl, f_1_tt,
+            wdi_rs, wdi_bl, wdi_tt,
+            bpk_rs, bpk_bl, bpk_tt,
+            ghd_rs, ghd_bl, ghd_tt,
+            gcount, bcount, rcount, tcount)
+        )
 
 
 # Formats a float (0.26315 => "0.26")
@@ -805,34 +854,61 @@ def merge_bow(a, b):
 
 
 def display_evaluations(scores):
-    total = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0, 0, 0)
+    total = (
+        0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0,
+        0, 0, 0, 0
+    )
 
     for s in scores:
         total = tuple(map(operator.add, s, total))
 
-    acc_rs, acc_bl, acc_tt, pr_rs, pr_bl, pr_tt, re_rs, re_bl, re_tt, f1_rs, f1_bl, f1_tt, wd_rs, wd_bl, wd_tt, pk_rs, pk_bl, pk_tt, ghd_rs, ghd_bl, ghd_tt, g_count, b_count, r_count, t_count = tuple(x/len(scores) for x in total)
+    acc_rs, acc_bl, acc_tt, pre_rs, pre_bl, pre_tt, rec_rs, rec_bl, rec_tt, f_1_rs, f_1_bl, f_1_tt, wdi_rs, wdi_bl, wdi_tt, bpk_rs, bpk_bl, bpk_tt, ghd_rs, ghd_bl, ghd_tt, gcount, bcount, rcount, tcount = tuple(x/len(scores) for x in total)
 
-    print(scores_to_string(acc_rs, acc_bl, acc_tt, pr_rs, pr_bl, pr_tt, re_rs, re_bl, re_tt, f1_rs, f1_bl, f1_tt, wd_rs, wd_bl, wd_tt, pk_rs, pk_bl, pk_tt, ghd_rs, ghd_bl, ghd_tt, g_count, b_count, r_count, t_count))
+    print(scores_to_string(
+        acc_rs, acc_bl, acc_tt,
+        pre_rs, pre_bl, pre_tt,
+        rec_rs, rec_bl, rec_tt,
+        f_1_rs, f_1_bl, f_1_tt,
+        wdi_rs, wdi_bl, wdi_tt,
+        bpk_rs, bpk_bl, bpk_tt,
+        ghd_rs, ghd_bl, ghd_tt,
+        gcount, bcount, rcount, tcount
+    ))
 
 
-def scores_to_string(acc_rs, acc_bl, acc_tt, pr_rs, pr_bl, pr_tt, re_rs, re_bl, re_tt, f1_rs, f1_bl, f1_tt, wd_rs, wd_bl, wd_tt, pk_rs, pk_bl, pk_tt, ghd_rs, ghd_bl, ghd_tt, g_count, b_count, r_count, t_count):
-    s  = "# Cross-validation:\n"
+def scores_to_string(
+        acc_rs, acc_bl, acc_tt,
+        pre_rs, pre_bl, pre_tt,
+        rec_rs, rec_bl, rec_tt,
+        f_1_rs, f_1_bl, f_1_tt,
+        wdi_rs, wdi_bl, wdi_tt,
+        bpk_rs, bpk_bl, bpk_tt,
+        ghd_rs, ghd_bl, ghd_tt,
+        gcount, bcount, rcount, tcount):
+
+    s = "# Cross-validation:\n"
     s += "#\n"
-    s += "#            \tResult:\t\tBase.:\tDiff.:\t\tTT.:\tDiff.:\n"
-    s += "# WindowDiff:\t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(wd_rs), dec(wd_bl), dec(wd_rs - wd_bl), dec(wd_tt), dec(wd_rs - wd_tt))
-    s += "# pk:        \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(pk_rs), dec(pk_bl), dec(pk_rs - pk_bl), dec(pk_tt), dec(pk_rs - pk_tt))
+    s += "#            \tResult:\t\tBase.:\tDiff.:\t\tT.T.:\tDiff.:\n"
+    s += "# WindowDiff:\t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(wdi_rs), dec(wdi_bl), dec(wdi_rs - wdi_bl), dec(wdi_tt), dec(wdi_rs - wdi_tt))
+    s += "# pk:        \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(bpk_rs), dec(bpk_bl), dec(bpk_rs - bpk_bl), dec(bpk_tt), dec(bpk_rs - bpk_tt))
     s += "# ghd:       \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(ghd_rs), dec(ghd_bl), dec(ghd_rs - ghd_bl), dec(ghd_tt), dec(ghd_rs - ghd_tt))
     s += "#\n"
-    s += "#            \tResult:\t\tBase.:\tDiff.:\t\tTT.:\tDiff.:\n"
+    s += "#            \tResult:\t\tBase.:\tDiff.:\t\tT.T.:\tDiff.:\n"
     s += "# accuracy:  \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(acc_rs), dec(acc_bl), dec(acc_rs - acc_bl), dec(acc_tt), dec(acc_rs - acc_tt))
     s += "#\n"
-    s += "#            \tResult:\t\tBase.:\tDiff.:\t\tTT.:\tDiff.:\n"
-    s += "# precision: \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(pr_rs), dec(pr_bl), dec(pr_rs - pr_bl), dec(pr_tt), dec(pr_rs - pr_tt))
-    s += "# recall:    \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(re_rs), dec(re_bl), dec(re_rs - re_bl), dec(re_tt), dec(re_rs - re_tt))
-    s += "# F1:        \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(f1_rs), dec(f1_bl), dec(f1_rs - f1_bl), dec(f1_tt), dec(f1_rs - f1_tt))
+    s += "#            \tResult:\t\tBase.:\tDiff.:\t\tT.T.:\tDiff.:\n"
+    s += "# precision: \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(pre_rs), dec(pre_bl), dec(pre_rs - pre_bl), dec(pre_tt), dec(pre_rs - pre_tt))
+    s += "# recall:    \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(rec_rs), dec(rec_bl), dec(rec_rs - rec_bl), dec(rec_tt), dec(rec_rs - rec_tt))
+    s += "# F1:        \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(f_1_rs), dec(f_1_bl), dec(f_1_rs - f_1_bl), dec(f_1_tt), dec(f_1_rs - f_1_tt))
     s += "#\n"
-    s += "#            \tResult:\tBase.:\tTT.:\n"
-    s += "# seg. ratio:\tx{0}\tx{1}\tx{2}".format(dec(float(r_count) / g_count), dec(float(b_count) / g_count), dec(float(t_count) / g_count))
+    s += "#            \tResult:\tBase.:\tT.T.:\n"
+    s += "# seg. ratio:\tx{0}\tx{1}\tx{2}".format(dec(float(rcount) / gcount), dec(float(bcount) / gcount), dec(float(tcount) / gcount))
 
     return s
 
@@ -917,6 +993,18 @@ if __name__ == "__main__":
         default=False,
         action="store_true",
         help="tests the impact of segmentation for a simple bag-of-words classification task")
+
+    op.add_option("--ngrams",
+        dest="ngrams",
+        default=False,
+        action="store_true",
+        help="uses automatically extracted ngrams as features")
+
+    op.add_option("--tt",
+        dest="text_tiling",
+        default=False,
+        action="store_true",
+        help="uses text tiling labels as features")
 
     op.add_option("-m", "--maximum",
         dest="maximum",
