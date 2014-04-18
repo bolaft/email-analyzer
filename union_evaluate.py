@@ -1,21 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-:Name:
-    sequence_labeller.py
-
-:Authors:
-    Soufian Salim (soufi@nsal.im)
-
-:Date:
-    february 27, 2014 (creation)
-
-:Description:
-    converts tokens extracted from tagged emails into wapiti datafiles, then trains, labels and evaluates
-    (see https://github.com/bolaft/email-analyzer)
-"""
-
 import codecs
 import math
 import operator
@@ -37,53 +22,6 @@ from optparse import OptionParser
 from progressbar import ProgressBar
 from sklearn import metrics
 from sklearn.naive_bayes import MultinomialNB
-
-
-# Parameters
-ONLY_INITIAL = True # keep only the first message of each thread
-ONLY_UTF8 = True # filter out payloads not encoded in utf-8
-ONLY_TEXT_PLAIN = True # filter out xml and html payloads
-FILTER_OBSERVATIONS = False # ignores multiple consecutive observations with "I" label in training
-OCCURRENCE_THRESHOLD_QUOTIENT = 0.075 # ignores words which occur less than once per (quotient * len(train)) messages
-
-# Data
-DATA_FOLDER = "data/email.message.tagged/" # folder where heuristically labelled emails are stored
-TEXT_TILING_FOLDER = "data/TT/ubuntu-users/" # folder where emails labelled by text-tiling are stored
-NGRAM_FILE = "ngrams"
-
-# Scores
-HTML_RESULT_FILE = TEXT_RESULT_FILE = None
-
-# BC3
-BC3_TAGGED_FILE = "data/bc3/bc3_tagged"
-BC3_LABELLED_FILE = "data/bc3/bc3_labelled"
-BC3_TEXT_TILING_FILE = "data/bc3/bc3_text_tiling"
-
-# Wapiti
-WAPITI_TRAIN_FILE = WAPITI_TEST_FILE = WAPITI_GOLD_FILE = WAPITI_RESULT_FILE = WAPITI_MODEL_FILE = WAPITI_PATTERN_FILE = None
-
-# Constants
-
-ngrams = []
-
-min_occurrences = 0
-
-standard_deviation = standard_average = None
-
-instances = 0
-
-avg = {
-    "position": 0,
-    "number_of_tokens": 0,
-    "number_of_characters": 0,
-    "number_of_quote_symbols": 0,
-    "average_token_length": 0,
-    "proportion_of_uppercase_characters": 0,
-    "proportion_of_alphabetic_characters": 0,
-    "proportion_of_numeric_characters": 0
-}
-
-occ = {} # occurrences counter
 
 
 # Main
@@ -171,7 +109,7 @@ def main(options, args):
 
             if options.label:
                 print("[{0}] Applying model on test data...".format(time.strftime("%H:%M:%S")))
-                subprocess.call("wapiti label -m {0} -s -p {1} {2}".format(WAPITI_MODEL_FILE, WAPITI_TEST_FILE, WAPITI_RESULT_FILE) , shell=True)
+                subprocess.call("wapiti label -m {0} -p {1} {2}".format(WAPITI_MODEL_FILE, WAPITI_TEST_FILE, WAPITI_RESULT_FILE) , shell=True)
 
             if options.check:
                 print("[{0}] Checking results...".format(time.strftime("%H:%M:%S")))
@@ -626,105 +564,52 @@ def make_patterns(tt=False, visual=False, hinge=False):
 
 
 # Evaluates the segmentation results
-def evaluate_segmentation(bc3=False, limit=-1):
-    d = "".join(data_to_list(WAPITI_TRAIN_FILE)) # training data
-    g = "".join(data_to_list(WAPITI_GOLD_FILE, limit=limit)) # gold string
-    temp_r = data_to_list(WAPITI_RESULT_FILE, limit=limit) # result string
-    n = data_to_list("var/union/ngrams_" + WAPITI_RESULT_FILE[-1], limit=limit)
-    
-    scores = {}
-
-    for i, col in enumerate(temp_r):
-        score = 0
-
-        if n[i][:n[i].index("/")] == "T":
-            score = 1
-        elif col[:col.index("/")] == "T":
-            score = float(col[col.index("/") + 1:])
-
-        scores[i] = score
-
-    sorted_indexes = sorted(scores, key=scores.get, reverse=True)
-    # indexes = [index for index, score in scores.iteritems() if score > 0.99]
-
-    r = "." * len(g)
-
-    n_boundaries = int((float(g.count("T")) / len(g)) * len(g))
-
-    for i, index in enumerate(sorted_indexes):
-        r = r[:index] + "T" + r[index + 1:]
-        if i == n_boundaries:
-            break
-    
-    # for index in indexes:
-    #     r = r[:index] + "T" + r[index+1:]
+def evaluate_segmentation(bc3=False, limit=0):
+    g = data_to_string(WAPITI_GOLD_FILE, limit=limit) # gold string
+    r = data_to_string(WAPITI_RESULT_FILE, limit=limit) # result string
 
     if bc3:
-        t = data_to_list(BC3_TEXT_TILING_FILE, limit=limit, label_position=0) # text tiling baseline string
+        t = data_to_string(BC3_TEXT_TILING_FILE, limit=limit, label_position=0) # text tiling baseline string
     else:
-        t = data_to_list(WAPITI_GOLD_FILE, limit=limit, label_position=-2)
+        t = data_to_string(WAPITI_GOLD_FILE, limit=limit, label_position=-2)
 
-    avg_g = float(len(g)) / (g.count("T") + 1) # average segment size (reference)
-    avg_d = float(len(d)) / (d.count("T") + 1) # average segment size (training)
+    avg = float(len(g)) / (g.count("T") + 1) # average segment size
+    k = int(avg / 2) # window size for WindowDiff
 
-    k = int(avg_g / 2) # window size for WindowDiff
-
-    b = ("T" + (int(math.floor(avg_d)) - 1) * ".") * int(math.ceil(float(len(d)) / int(math.floor(avg_d))))
+    b = ("T" + (int(math.floor(avg)) - 1) * ".") * int(math.ceil(float(len(g)) / int(math.floor(avg))))
     b = b[:len(g)] # baseline string
 
+    print(g[:150])
+    print(r[:150])
+
     # WindowDiff
-    wdi_rs = (float(windowdiff(g, r, k, boundary="T")) / len(g)) * 100
-    wdi_bl = (float(windowdiff(g, b, k, boundary="T")) / len(g)) * 100
-    wdi_tt = (float(windowdiff(g, t, k, boundary="T")) / len(g)) * 100
+    wdi = (float(windowdiff(g, r, k, boundary="T")) / len(g)) * 100
 
     # Beeferman's Pk
-    bpk_rs = (pk(g, r, boundary="T")) * 100
-    bpk_bl = (pk(g, b, boundary="T")) * 100
-    bpk_tt = (pk(g, t, boundary="T")) * 100
+    bpk = (pk(g, r, boundary="T")) * 100
 
     # Generalized Hamming Distance
-    ghd_rs = (ghd(g, r, boundary="T") / len(g)) * 100
-    ghd_bl = (ghd(g, b, boundary="T") / len(g)) * 100
-    ghd_tt = (ghd(g, t, boundary="T") / len(g)) * 100
+    ghd = (GHD(g, r, boundary="T") / len(g)) * 100
 
     # accuracy
-    acc_rs = accuracy(list(g), list(r)) * 100
-    acc_bl = accuracy(list(g), list(b)) * 100
-    acc_tt = accuracy(list(g), list(t)) * 100
+    acc = accuracy(list(g), list(r)) * 100
 
     # precision, recall, f-measure
-    pre_rs = metrics.precision_score(list(g), list(r)) * 100
-    rec_rs = metrics.recall_score(list(g), list(r)) * 100
-    f_1_rs = (2.0 * (rec_rs * pre_rs)) / (rec_rs + pre_rs)
+    pre = metrics.precision_score(list(g), list(r)) * 100
+    rec = metrics.recall_score(list(g), list(r)) * 100
+    f_1 = (2.0 * (rec_rs * pre_rs)) / (rec_rs + pre_rs)
 
-    pre_bl = metrics.precision_score(list(g), list(b)) * 100
-    rec_bl = metrics.recall_score(list(g), list(b)) * 100
-    f_1_bl = (2.0 * (rec_bl * pre_bl)) / (rec_bl + pre_bl)
-    
-    pre_tt = metrics.precision_score(list(g), list(t)) * 100
-    rec_tt = metrics.recall_score(list(g), list(t)) * 100
-    f_1_tt = (2.0 * (rec_tt * pre_tt)) / (rec_tt + pre_tt)
-
-    return acc_rs, acc_bl, acc_tt, pre_rs, pre_bl, pre_tt, rec_rs, rec_bl, rec_tt, f_1_rs, f_1_bl, f_1_tt, wdi_rs, wdi_bl, wdi_tt, bpk_rs, bpk_bl, bpk_tt, ghd_rs, ghd_bl, ghd_tt, g.count("T"), b.count("T"), r.count("T"), t.count("T")
+    return acc, pre, rec, f_1, wdi, bpk, ghd, g.count("T"), r.count("T")
 
 
 # Writes evaluation to file
 def write_evaluation(fold, evaluation):
-    acc_rs, acc_bl, acc_tt, pre_rs, pre_bl, pre_tt, rec_rs, rec_bl, rec_tt, f_1_rs, f_1_bl, f_1_tt, wdi_rs, wdi_bl, wdi_tt, bpk_rs, bpk_bl, bpk_tt, ghd_rs, ghd_bl, ghd_tt, gcount, bcount, rcount, tcount = evaluation
+    acc, pre, rec, f_1, wdi, bpk, ghd, gcount, rcount = evaluation
     
     with codecs.open(TEXT_RESULT_FILE, "a+") as out:
         out.write("\n# fold %s\n" % fold)
 
-        out.write(scores_to_string(
-            acc_rs, acc_bl, acc_tt,
-            pre_rs, pre_bl, pre_tt,
-            rec_rs, rec_bl, rec_tt,
-            f_1_rs, f_1_bl, f_1_tt,
-            wdi_rs, wdi_bl, wdi_tt,
-            bpk_rs, bpk_bl, bpk_tt,
-            ghd_rs, ghd_bl, ghd_tt,
-            gcount, bcount, rcount, tcount)
-        )
+        out.write(scores_to_string(acc, pre, rec, f_1, wdi, bpk, ghd, gcount, rcount))
 
 
 # Formats a float (0.26315 => "0.26")
@@ -733,346 +618,59 @@ def dec(f):
 
 
 # Makes a string of labels
-def data_to_list(path, limit=-1, label_position=-1):
-    s = []
+def data_to_string(path, limit=0, label_position=-1):
+    s = ""
+    i = 1
 
     with codecs.open(path, "r") as f:
-        for j, line in enumerate(f):
-            if len(s) == limit:
+        for line in f:
+            if i == limit:
                 break
-            if not line.startswith("#"):
-                tokens = line.split()
-                if len(tokens) > 1:
-                    s.append(tokens[label_position].replace("F", ".").replace("O", ".").replace("S", "T"))
+            tokens = line.split()
+            if len(tokens) > 1:
+                s += tokens[label_position]
+                i += 1
 
-    return s
-
-
-# Exports to HTML
-def export_html(g, b, r):
-    html = ""
-
-    html += "<!doctype html>"
-    html += "<html lang=\"%s\">" % "en"
-    html += "<head>"
-    html += "   <link rel=\"stylesheet\" href=\"%s\" type=\"text/css\">" % "../../style.css"
-    html += "   <meta charset=\"%s\">" % "utf-8"
-    html += "   <title>%s</title>" % "result.html"
-    html += "</head>"
-    html += "<body style=\"width: auto\">"
-    html += "   <table>"
-    html += "       <tr>"
-    html += g.replace("T", "<td class=\"g T\">").replace(".", "<td class=\"g F\">")
-    html += "       </tr>"
-    html += "       <tr>"
-    html += r.replace("T", "<td class=\"r T\">").replace(".", "<td class=\"r F\">")
-    html += "       </tr>"
-    html += "       <tr>"
-    html += b.replace("T", "<td class=\"b T\">").replace(".", "<td class=\"b F\">")
-    html += "       </tr>"
-    html += "   </table>"
-    html += "</body>"
-    html += "</html>"
-
-    with codecs.open(HTML_RESULT_FILE, "w") as out:
-        out.write(html)
-
-
-# Evaluates BoW approach on segmented and non-segmented BC3
-def evaluate_bow():
-    lines = codecs.open(BC3_LABELLED_FILE, "r").readlines()
-
-    data = []
-    gold = []
-
-    for i, line in enumerate(lines):
-        tokens = line.strip().split()
-
-        if len(tokens) > 2:
-            label = tokens.pop(0)
-            tag = tokens.pop(0)
-
-            if tag == "none":
-                continue
-
-            if i < len(lines) and len(lines[i + 1].strip().split()) > 2:
-                lines[i + 1].strip().split().pop(0)
-                next_label = lines[i + 1].strip().split().pop(0)
-            else:
-                next_label = "T"
-
-            gold.append(tag)
-            data.append((FreqDist(tokens), tag, next_label))
-
-    limit = int(float(len(data)) * 0.8)
-
-    # training set: bags-of-words and tag tuples
-    train = [(bow, tag) for bow, tag, next_label in data[:limit]]
-    # training the classifier
-    classifier = SklearnClassifier(MultinomialNB()).train(train)
-
-    results = {
-        "segmented": [],
-        "unsegmented": []
-    }
-
-    all_choices = [] # all choices made
-    choices = [] # choices for the current segment
-    nb = 1 # number of lines in the segment
-   
-    for i, (bow, tag, next_label) in enumerate(data[limit:]):
-        # bow classification
-        choice = classifier.classify(bow)
-        choices.append(choice)
-        all_choices.append(choice)
-
-        # line by line classification for unsegmented results
-        results["unsegmented"].append(choice)
-
-        # more complex classification for segmented results
-        if next_label == "T":
-            most_common = Counter(choices).most_common()
-
-            if len(most_common) > 1:
-                tf = FreqDist(all_choices)
-                vote = most_common[0]
-                best = 1
-
-                for candidate, occ in most_common:
-                    if tf[candidate] > best:
-                        vote = candidate
-                        best = tf[candidate]
-            else:
-                vote, occ = most_common[0]
-
-            results["segmented"] += [vote for choice in choices]
-            choices = []
-            nb = 1
-        else:
-            nb += 1 # incrementing the current number of lines in the bag
-  
-    for i, label in enumerate(gold[limit:]):
-        bow, tag, next_label = data[i + limit]
-        print("# {0}\t{1}\t{2}".format(label, results["unsegmented"][i], results["segmented"][i]))
-        if next_label == "T":
-            print("# ------------------")
-
-    # segmented metrics
-    sp = metrics.precision_score(gold[limit:], results["segmented"])
-    sr = metrics.recall_score(gold[limit:], results["segmented"])
-    sf = (2.0 * (sr * sp)) / (sr + sp)
-
-    # unsegmented metrics
-    up = metrics.precision_score(gold[limit:], results["unsegmented"])
-    ur = metrics.recall_score(gold[limit:], results["unsegmented"])
-    uf = (2.0 * (ur * up)) / (ur + up)
-
-    print("#")
-    print("#                Pre.:\t\tRec:\t\tF1:")
-    print("# segmented:     {0}%\t\t{1}%\t\t{2}%".format(dec(sp * 100), dec(sr * 100), dec(sf * 100)))
-    print("# non-segmented: {0}%\t\t{1}%\t\t{2}%".format(dec(up * 100), dec(ur * 100), dec(uf * 100)))
-
-
-# Merges two bags-of-words:
-def merge_bow(a, b):
-    for k, v in a.iteritems():
-        if k in b:
-            b[k] += v
-        else:
-            b[k] = v
-
-    return b
+    return s.replace("F", ".").replace("O", ".").replace("S", "T")
 
 
 def display_evaluations(scores):
-    total = (
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0, 0, 0, 0
-    )
+    total = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0)
 
     for s in scores:
         total = tuple(map(operator.add, s, total))
 
-    acc_rs, acc_bl, acc_tt, pre_rs, pre_bl, pre_tt, rec_rs, rec_bl, rec_tt, f_1_rs, f_1_bl, f_1_tt, wdi_rs, wdi_bl, wdi_tt, bpk_rs, bpk_bl, bpk_tt, ghd_rs, ghd_bl, ghd_tt, gcount, bcount, rcount, tcount = tuple(x/len(scores) for x in total)
+    acc_rs, pre_rs, rec_rs, f_1_rs, wdi_rs, bpk_rs, ghd_rs, gcount, rcount = tuple(x/len(scores) for x in total)
 
-    print(scores_to_string(
-        acc_rs, acc_bl, acc_tt,
-        pre_rs, pre_bl, pre_tt,
-        rec_rs, rec_bl, rec_tt,
-        f_1_rs, f_1_bl, f_1_tt,
-        wdi_rs, wdi_bl, wdi_tt,
-        bpk_rs, bpk_bl, bpk_tt,
-        ghd_rs, ghd_bl, ghd_tt,
-        gcount, bcount, rcount, tcount
+    print(scores_to_string( acc_rs, pre_rs, rec_rs, f_1_rs, wdi_rs, bpk_rs, ghd_rs, gcount, rcount
     ))
 
 
-def scores_to_string(
-        acc_rs, acc_bl, acc_tt,
-        pre_rs, pre_bl, pre_tt,
-        rec_rs, rec_bl, rec_tt,
-        f_1_rs, f_1_bl, f_1_tt,
-        wdi_rs, wdi_bl, wdi_tt,
-        bpk_rs, bpk_bl, bpk_tt,
-        ghd_rs, ghd_bl, ghd_tt,
-        gcount, bcount, rcount, tcount):
+def scores_to_string( acc_rs, pre_rs, rec_rs, f_1_rs, wdi_rs, bpk_rs, ghd_rs, gcount, rcount):
 
-    s  = "#            \tResult:\t\tBase.:\tDiff.:\t\tT.T.:\tDiff.:\n"
-    s += "# WindowDiff:\t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(wdi_rs), dec(wdi_bl), dec(wdi_rs - wdi_bl), dec(wdi_tt), dec(wdi_rs - wdi_tt))
-    s += "# pk:        \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(bpk_rs), dec(bpk_bl), dec(bpk_rs - bpk_bl), dec(bpk_tt), dec(bpk_rs - bpk_tt))
-    s += "# ghd:       \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(ghd_rs), dec(ghd_bl), dec(ghd_rs - ghd_bl), dec(ghd_tt), dec(ghd_rs - ghd_tt))
+    s  = "#            \tResult:\n"
+    s += "# WindowDiff:\t{0}%\n".format(dec(wdi_rs))
+    s += "# pk:        \t{0}%\n".format(dec(bpk_rs))
+    s += "# ghd:       \t{0}%\n".format(dec(ghd_rs))
     s += "#\n"
-    s += "#            \tResult:\t\tBase.:\tDiff.:\t\tT.T.:\tDiff.:\n"
-    s += "# accuracy:  \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(acc_rs), dec(acc_bl), dec(acc_rs - acc_bl), dec(acc_tt), dec(acc_rs - acc_tt))
+    s += "#            \tResult:\n"
+    s += "# accuracy:  \t{0}%\n".format(dec(acc_rs))
     s += "#\n"
-    s += "#            \tResult:\t\tBase.:\tDiff.:\t\tT.T.:\tDiff.:\n"
-    s += "# precision: \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(pre_rs), dec(pre_bl), dec(pre_rs - pre_bl), dec(pre_tt), dec(pre_rs - pre_tt))
-    s += "# recall:    \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(rec_rs), dec(rec_bl), dec(rec_rs - rec_bl), dec(rec_tt), dec(rec_rs - rec_tt))
-    s += "# F1:        \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(f_1_rs), dec(f_1_bl), dec(f_1_rs - f_1_bl), dec(f_1_tt), dec(f_1_rs - f_1_tt))
+    s += "#            \tResult:\n"
+    s += "# precision: \t{0}%\n".format(dec(pre_rs))
+    s += "# recall:    \t{0}%\n".format(dec(rec_rs))
+    s += "# F1:        \t{0}%\n".format(dec(f_1_rs))
     s += "#\n"
-    s += "#            \tResult:\tBase.:\tT.T.:\n"
-    s += "# seg. ratio:\tx{0}\tx{1}\tx{2}".format(dec(float(rcount) / gcount), dec(float(bcount) / gcount), dec(float(tcount) / gcount))
+    s += "#            \tResult:\t\n"
+    s += "# seg. ratio:\tx{0}".format(dec(float(rcount) / gcount))
 
     return s
-
-
-# Compute average
-def average(l):
-    return sum(l, 0.0) / len(l)
-    
-
-# Compute variance
-def variance(l):
-    m = average(l)
-
-    return average([(x-m)**2 for x in l])
-
-
-# Compute standard deviation
-def standard_deviation(l):
-    return variance(l)**0.5
 
 
 # Launch
 if __name__ == "__main__":
     op = OptionParser(usage="usage: %prog [options] experiment_name")
 
-    op.add_option("-s", "--save",
-        dest="save",
-        default=False,
-        action="store_true",
-        help="saves a backup of the script in its current form")
-
-    op.add_option("-b", "--build",
-        dest="build",
-        default=False,
-        action="store_true",
-        help="builds train, test and gold datafiles")
-
-    op.add_option("-p", "--patterns",
-        dest="patterns",
-        default=False,
-        action="store_true",
-        help="builds a patterns file")
-
-    op.add_option("-t", "--train",
-        dest="train",
-        default=False,
-        action="store_true",
-        help="trains and saves a model to file (-b required in current or previous run)")
-
-    op.add_option("-l", "--label",
-        dest="label",
-        default=False,
-        action="store_true",
-        help="labels the test file and saves the result to file (-bt required in current or previous run)")
-
-    op.add_option("-e", "--evaluate",
-        dest="evaluate",
-        default=False,
-        action="store_true",
-        help="prints segmentation metrics (-l required in current or previous run)")
-
-    op.add_option("-a", "--all",
-        dest="all",
-        default=False,
-        action="store_true",
-        help="switches all previous options on")
-
-    op.add_option("-c", "--check",
-        dest="check",
-        default=False,
-        action="store_true",
-        help="displays P, R and F1 for each fold (-bt required in current or previous run)")
-
-    op.add_option("--bc3",
-        dest="bc3",
-        default=False,
-        action="store_true",
-        help="uses the annotated BC3 corpus for evaluation (not k-fold)")
-
-    op.add_option("--bow",
-        dest="bow",
-        default=False,
-        action="store_true",
-        help="tests the impact of segmentation for a simple bag-of-words classification task")
-
-    op.add_option("--ngrams",
-        dest="ngrams",
-        default=False,
-        action="store_true",
-        help="uses automatically extracted ngrams as features")
-
-    op.add_option("--tt",
-        dest="text_tiling",
-        default=False,
-        action="store_true",
-        help="uses text tiling labels as features")
-
-    op.add_option("--visual",
-        dest="visual",
-        default=False,
-        action="store_true",
-        help="uses visual features")
-
-    op.add_option("--hinge",
-        dest="hinge",
-        default=False,
-        action="store_true",
-        help="uses \"hinge\" tokens as features")
-
-    op.add_option("-m", "--maximum",
-        dest="maximum",
-        type="int",
-        default=1000,
-        help="maximum number of instances (defaults to 1000)")
-
-    op.add_option("-f", "--folds",
-        dest="folds",
-        type="int",
-        default=10,
-        help="number of folds for cross-validation (defaults to 10)")
-
-    op.add_option("-x", "--experiments",
-        dest="experiments",
-        default=False,
-        action="store_true",
-        help="displays the list of saved experiments")
-
     options, args = op.parse_args()
-   
-    if options.experiments:
-        args = [""] if len(args) == 0 else args
-    elif len(args) < 1:
-        op.error("missing argument \"experiment_name\"")
-
-    if options.all:
-        options.save = options.train = options.build = options.patterns = options.label = options.evaluate = True
 
     main(options, args)
