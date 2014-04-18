@@ -1,3 +1,4 @@
+*.csv
 *.arff
 *.log
 *.swp

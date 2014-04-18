@@ -99,6 +99,7 @@ def main(options, args):
         print("[{0}] Extracting ngrams from list...".format(time.strftime("%H:%M:%S")))
         global ngrams
         ngrams = [ngram.strip() for ngram in tuple(codecs.open(NGRAM_FILE, "r"))]
+        print("# %d ngrams extracted" % len(ngrams))
 
     # Makes a copy of the script for future reference
     if options.save:
@@ -128,7 +129,7 @@ def main(options, args):
 
     if options.patterns:
         print("[{0}] Building pattern file...".format(time.strftime("%H:%M:%S")))
-        make_patterns(tt=options.text_tiling)
+        make_patterns(tt=options.text_tiling, visual=options.visual, hinge=options.hinge)
 
     scores = []
 
@@ -211,7 +212,7 @@ def generate_k_pairs(bc3, limit, folds, only_initial=False, only_utf8=False, onl
 
     progress = ProgressBar()
 
-    print("# verifying data files...")
+    print("# selecting data files...")
 
     # iterates through files in the data folder
     for filename in progress(os.listdir(DATA_FOLDER)):
@@ -582,38 +583,38 @@ def clear_numbers(s):
 
 
 # Computes and writes patterns
-def make_patterns(tt=False):
+def make_patterns(tt=False, visual=False, hinge=False):
     progress = ProgressBar(maxval=10).start()
-    tt_offset = 1 if tt else 0
 
     with codecs.open(WAPITI_PATTERN_FILE, "w") as out:
         i = 1
 
-        for off in xrange(-5, 6):
+        for off in xrange(-2, 3):
             progress.update(off + 5)
 
             off = str(off) if off < 1 else "+" + str(off)
 
-            for offset in [0, 9]:
-                for off_col in xrange(0, 3):
-                    base_col = off_col + offset
+            if hinge:
+                for offset in [0, 9]:
+                    for off_col in xrange(0, 3):
+                        base_col = off_col + offset
 
-                    out.write("*{0}:%x[{1},{2}]\n".format(i, off, base_col)) # unigram 1
-                    i += 1
-                    out.write("*{0}:%x[{1},{2}]\n".format(i, off, base_col + 3)) # unigram 2
-                    i += 1
-                    out.write("*{0}:%x[{1},{2}]\n".format(i, off, base_col + 6)) # unigram 3
-                    i += 1
-                    out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]\n".format(i, off, base_col, base_col + 3)) # bigram 1
-                    i += 1
-                    out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]\n".format(i, off, base_col + 3, base_col + 6)) # bigram 2
-                    i += 1
-                    out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]/%x[{1},{4}]\n".format(i, off, base_col, base_col + 3, base_col + 6)) # trigram
-                    i += 1
+                        out.write("*{0}:%x[{1},{2}]\n".format(i, off, base_col)) # unigram 1
+                        i += 1
+                        out.write("*{0}:%x[{1},{2}]\n".format(i, off, base_col + 3)) # unigram 2
+                        i += 1
+                        out.write("*{0}:%x[{1},{2}]\n".format(i, off, base_col + 6)) # unigram 3
+                        i += 1
+                        out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]\n".format(i, off, base_col, base_col + 3)) # bigram 1
+                        i += 1
+                        out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]\n".format(i, off, base_col + 3, base_col + 6)) # bigram 2
+                        i += 1
+                        out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]/%x[{1},{4}]\n".format(i, off, base_col, base_col + 3, base_col + 6)) # trigram
+                        i += 1
 
-                out.write("\n")
+                    out.write("\n")
 
-            for col in xrange(18, 42 + len(ngrams) + tt_offset):
+            for col in xrange(18 if visual else 42, 42 + len(ngrams) + (1 if tt else 0)):
                 out.write("*{0}:%x[{1},{2}]\n".format(i, off, col))
                 i += 1
 
@@ -621,7 +622,7 @@ def make_patterns(tt=False):
 
     progress.finish()
 
-    print("# %s patterns built" % i)
+    print("# %s patterns built" % str(i - 1))
 
 
 # Evaluates the segmentation results
@@ -639,6 +640,9 @@ def evaluate_segmentation(bc3=False, limit=0):
 
     b = ("T" + (int(math.floor(avg)) - 1) * ".") * int(math.ceil(float(len(g)) / int(math.floor(avg))))
     b = b[:len(g)] # baseline string
+
+    print(g[:150])
+    print(r[:150])
 
     # WindowDiff
     wdi_rs = (float(windowdiff(g, r, k, boundary="T")) / len(g)) * 100
@@ -892,9 +896,7 @@ def scores_to_string(
         ghd_rs, ghd_bl, ghd_tt,
         gcount, bcount, rcount, tcount):
 
-    s = "# Cross-validation:\n"
-    s += "#\n"
-    s += "#            \tResult:\t\tBase.:\tDiff.:\t\tT.T.:\tDiff.:\n"
+    s  = "#            \tResult:\t\tBase.:\tDiff.:\t\tT.T.:\tDiff.:\n"
     s += "# WindowDiff:\t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(wdi_rs), dec(wdi_bl), dec(wdi_rs - wdi_bl), dec(wdi_tt), dec(wdi_rs - wdi_tt))
     s += "# pk:        \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(bpk_rs), dec(bpk_bl), dec(bpk_rs - bpk_bl), dec(bpk_tt), dec(bpk_rs - bpk_tt))
     s += "# ghd:       \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(ghd_rs), dec(ghd_bl), dec(ghd_rs - ghd_bl), dec(ghd_tt), dec(ghd_rs - ghd_tt))
@@ -1005,6 +1007,18 @@ if __name__ == "__main__":
         default=False,
         action="store_true",
         help="uses text tiling labels as features")
+
+    op.add_option("--visual",
+        dest="visual",
+        default=False,
+        action="store_true",
+        help="uses visual features")
+
+    op.add_option("--hinge",
+        dest="hinge",
+        default=False,
+        action="store_true",
+        help="uses \"hinge\" tokens as features")
 
     op.add_option("-m", "--maximum",
         dest="maximum",
