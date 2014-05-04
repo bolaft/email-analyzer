@@ -18,7 +18,7 @@ from nltk import pos_tag
 from nltk.stem.wordnet import WordNetLemmatizer
 from optparse import OptionParser
 from progressbar import ProgressBar
-from utility import timed_print
+from utility import timed_print, compute_file_length
 
 # Default parameters
 
@@ -52,7 +52,7 @@ def build_datasets(opts):
     """
     
     # filenames
-    data_folder_files = os.listdir(opts.data_folder)
+    data_folder_files = os.listdir(opts.data_folder)[:100]
 
     ########################################
     
@@ -567,7 +567,7 @@ def parse_data_files(folder, text_tiling_folder, filenames):
             tt_label = tt_lines[line_number - 1].strip().split().pop(0) if line_number - 1 < len(tt_lines) else "O"
 
             line_data.append((
-                line, tokens, label, tt_label, line_number, compute_file_length(folder + filename)
+                line, tokens, label, tt_label, line_number, compute_file_length(folder + filename, ignore_empty=True)
             ))
 
         data.append(line_data)
@@ -610,14 +610,6 @@ def compute_max_file_length(paths):
     return int(math.ceil(
         average(file_lengths) + standard_deviation(file_lengths)
     ))
-
-
-def compute_file_length(path):
-    """
-    Compute the length of a file
-    """
-
-    return sum(1 for line in open(path) if not line.startswith("#") and len(line.strip()) > 1)
 
 
 def average(l):
