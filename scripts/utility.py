@@ -34,3 +34,27 @@ def float_to_string(f):
     """
 
     return "{0:.2f}".format(float(f) * 100)
+
+
+def average(l):
+    """
+    Compute the average value of the list
+    """
+
+    return sum(l, 0.0) / len(l)
+    
+
+def variance(l):
+    """
+    Compute the variance of the list
+    """
+
+    return average([(x - average(l)) ** 2 for x in l])
+
+
+def standard_deviation(l):
+    """
+    Compute the standard deviation in the list
+    """
+
+    return variance(l) ** 0.5

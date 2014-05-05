@@ -18,7 +18,7 @@ from nltk import pos_tag
 from nltk.stem.wordnet import WordNetLemmatizer
 from optparse import OptionParser
 from progressbar import ProgressBar
-from utility import timed_print, compute_file_length
+from utility import timed_print, compute_file_length, average, standard_deviation
 
 # Default parameters
 
@@ -606,30 +606,6 @@ def compute_max_file_length(paths):
     return int(math.ceil(
         average(file_lengths) + standard_deviation(file_lengths)
     ))
-
-
-def average(l):
-    """
-    Compute the average value of the list
-    """
-
-    return sum(l, 0.0) / len(l)
-    
-
-def variance(l):
-    """
-    Compute the variance of the list
-    """
-
-    return average([(x - average(l)) ** 2 for x in l])
-
-
-def standard_deviation(l):
-    """
-    Compute the standard deviation in the list
-    """
-
-    return variance(l) ** 0.5
 
 
 def select_data_files(
