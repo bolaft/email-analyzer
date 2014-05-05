@@ -35,13 +35,6 @@ WAPITI_ORIGIN_FILE = "var/wapiti_origin.tsv"
 
 PATTERN_FILE = "patterns.tsv"
 
-# Parameters
-
-USE_SYNTACTIC = False
-USE_STYLISTIC = False
-USE_LEXICAL = False
-USE_THEMATIC = False
-
 
 def test_segment(opts, args):
     """
@@ -182,7 +175,7 @@ def evaluate_segmentation(result_file, gold_file, train_file, limit=-1, base_res
     Compute scores for the current fold
     """
 
-    d = "".join(data_to_list(train_file)) # training data
+    d = "".join(data_to_list(train_file)) # training string
     g = "".join(data_to_list(gold_file, limit=limit)) # gold string
     t = "".join(data_to_list(result_file, limit=limit, label_position=-3)) # TextTiling string
 
@@ -194,9 +187,9 @@ def evaluate_segmentation(result_file, gold_file, train_file, limit=-1, base_res
 
         max_boundaries = int(t.count("T") * (float(len(g)) / len(t))) if smart_combine else -1
 
-        r = combine_results(result_data, base_result_data, max_boundaries=max_boundaries)
+        r = combine_results(result_data, base_result_data, max_boundaries=max_boundaries) # result string
     else:
-        r = "".join(data_to_list(result_file, limit=limit, label_position=-2))
+        r = "".join(data_to_list(result_file, limit=limit, label_position=-2)) # result string
 
     avg_g = float(len(g)) / (g.count("T") + 1) # average segment size (reference)
     avg_d = float(len(d)) / (d.count("T") + 1) # average segment size (training)
@@ -206,38 +199,24 @@ def evaluate_segmentation(result_file, gold_file, train_file, limit=-1, base_res
     b = ("T" + (int(math.floor(avg_d)) - 1) * "F") * int(math.ceil(float(len(d)) / int(math.floor(avg_d))))
     b = b[:len(g)] # baseline string
 
-    # WindowDiff
-    wdi_rs = (float(windowdiff(g, r, k, boundary="T")) / len(g)) * 100
-    wdi_bl = (float(windowdiff(g, b, k, boundary="T")) / len(g)) * 100
-    wdi_tt = (float(windowdiff(g, t, k, boundary="T")) / len(g)) * 100
+    ########################################
 
-    # Beeferman's Pk
-    bpk_rs = (pk(g, r, boundary="T")) * 100
-    bpk_bl = (pk(g, b, boundary="T")) * 100
-    bpk_tt = (pk(g, t, boundary="T")) * 100
-
-    # Generalized Hamming Distance
-    ghd_rs = (ghd(g, r, boundary="T") / len(g)) * 100
-    ghd_bl = (ghd(g, b, boundary="T") / len(g)) * 100
-    ghd_tt = (ghd(g, t, boundary="T") / len(g)) * 100
+    # WindowDiff, Beeferman's Pk, Generalized Hamming Distance
+    wdi_rs, bpk_rs, ghd_rs = compute_segmentation_scores(g, r, k)
+    wdi_bl, bpk_bl, ghd_bl = compute_segmentation_scores(g, b, k)
+    wdi_tt, bpk_tt, ghd_tt = compute_segmentation_scores(g, t, k)
 
     # accuracy
-    acc_rs = accuracy(list(g), list(r)) * 100
-    acc_bl = accuracy(list(g), list(b)) * 100
-    acc_tt = accuracy(list(g), list(t)) * 100
+    acc_rs = accuracy(g, r)
+    acc_bl = accuracy(g, b)
+    acc_tt = accuracy(g, t)
 
     # precision, recall, f-measure
-    pre_rs = metrics.precision_score(list(g), list(r), pos_label="T") * 100
-    rec_rs = metrics.recall_score(list(g), list(r), pos_label="T") * 100
-    f_1_rs = (2.0 * (rec_rs * pre_rs)) / (rec_rs + pre_rs)
+    pre_rs, rec_rs, f_1_rs = compute_ir_scores(g, r)
+    pre_bl, rec_bl, f_1_bl = compute_ir_scores(g, b)
+    pre_tt, rec_tt, f_1_tt = compute_ir_scores(g, t)
 
-    pre_bl = metrics.precision_score(list(g), list(b), pos_label="T") * 100
-    rec_bl = metrics.recall_score(list(g), list(b), pos_label="T") * 100
-    f_1_bl = (2.0 * (rec_bl * pre_bl)) / (rec_bl + pre_bl)
-    
-    pre_tt = metrics.precision_score(list(g), list(t), pos_label="T") * 100
-    rec_tt = metrics.recall_score(list(g), list(t), pos_label="T") * 100
-    f_1_tt = (2.0 * (rec_tt * pre_tt)) / (rec_tt + pre_tt)
+    ########################################
 
     return (
         acc_rs, acc_bl, acc_tt, 
@@ -272,6 +251,30 @@ def data_to_list(path, limit=-1, label_position=-1):
                     s.append(tokens[label_position].replace("S", "T").replace("O", "F"))
 
     return s
+
+
+def compute_segmentation_scores(reference, results, k):
+    """
+    Compute WindowDiff, Beeferman's Pk and Generalized Hamming Distance
+    """
+
+    window_diff = float(windowdiff(reference, results, k, boundary="T")) / len(reference)
+    bpk = pk(reference, results, boundary="T")
+    generalized_hamming_distance = ghd(reference, results, boundary="T") / len(reference)
+
+    return window_diff, bpk, generalized_hamming_distance
+
+
+def compute_ir_scores(reference, results, label="T"):
+    """
+    Compute precision, recall and f-measure
+    """
+
+    precision = metrics.precision_score(list(reference), list(results), pos_label=label)
+    recall = metrics.recall_score(list(reference), list(results), pos_label=label)
+    f1 = (2.0 * (recall * precision)) / (recall + precision)
+
+    return precision, recall, f1
 
 
 def combine_results(results, base_results, max_boundaries=-1):
@@ -376,26 +379,26 @@ def parse_args():
 
     op.add_option("--syntactic",
         dest="syntactic",
-        default=USE_SYNTACTIC,
-        action="store_false" if USE_SYNTACTIC else "store_true",
+        default=False,
+        action="store_true",
         help="use syntactic features")
 
     op.add_option("--stylistic",
         dest="stylistic",
-        default=USE_STYLISTIC,
-        action="store_false" if USE_STYLISTIC else "store_true",
+        default=False,
+        action="store_true",
         help="use stylistic features")
 
     op.add_option("--lexical",
         dest="lexical",
-        default=USE_LEXICAL,
-        action="store_false" if USE_LEXICAL else "store_true",
+        default=False,
+        action="store_true",
         help="use lexical features")
 
     op.add_option("--thematic",
         dest="thematic",
-        default=USE_THEMATIC,
-        action="store_false" if USE_THEMATIC else "store_true",
+        default=False,
+        action="store_true",
         help="use thematic features")
 
     ########################################

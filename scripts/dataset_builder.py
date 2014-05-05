@@ -22,17 +22,13 @@ from utility import timed_print, compute_file_length
 
 # Default parameters
 
-ONLY_INITIAL = True # keep only the first message of each thread
-ONLY_UTF8 = True # filter out payloads not encoded in utf-8
-ONLY_TEXT_PLAIN = True # filter out xml and html payloads
-
 OCCURRENCE_THRESHOLD_QUOTIENT = 0.075 / 150 # words that appear less than (quotient * total tokens) times are ignored
 
 # Default paths
 
 DATA_FOLDER = "../data/email.message.tagged/" # folder where heuristically labelled emails are stored
 TT_FOLDER = "../data/TT/ubuntu-users/" # folder where emails labelled by text-tiling are stored
-NGRAMS_FILE = "../ngrams" # file containing relevant ngrams
+NGRAMS_FILE = "var/ngrams" # file containing relevant ngrams
 
 WAPITI_TRAIN_FILE = "var/wapiti_train.tsv"
 WAPITI_TEST_FILE = "var/wapiti_test.tsv"
@@ -702,20 +698,20 @@ def parse_args():
     
     op.add_option("-i", "--initial",
         dest="only_initial",
-        default=ONLY_INITIAL,
-        action="store_false" if ONLY_INITIAL else "store_true",
+        default=False,
+        action="store_true",
         help="keeps only first messages in threads")
 
     op.add_option("-u", "--utf8",
         dest="only_utf8",
-        default=ONLY_UTF8,
-        action="store_false" if ONLY_UTF8 else "store_true",
+        default=False,
+        action="store_true",
         help="keeps only utf-8 encoded messages")
 
     op.add_option("-t", "--text",
         dest="only_text_plain",
-        default=ONLY_TEXT_PLAIN,
-        action="store_false" if ONLY_TEXT_PLAIN else "store_true",
+        default=False,
+        action="store_true",
         help="keeps only plain text messages")
 
     ########################################

@@ -1,3 +1,4 @@
+*.pyc
 *.csv
 *.arff
 *.log
@@ -11,4 +12,5 @@ target/*
 tmp/*
 var/*
 backup/*
+scripts/var/*
 !.gitkeep

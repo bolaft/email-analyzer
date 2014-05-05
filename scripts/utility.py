@@ -33,4 +33,4 @@ def float_to_string(f):
     Converts float to string
     """
 
-    return "{0:.2f}".format(f)
+    return "{0:.2f}".format(float(f) * 100)
