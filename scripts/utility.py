@@ -13,11 +13,11 @@ import time
 
 
 def timed_print(message):
-	"""
-	Prints a string prefixed by the current date and time
-	"""
+    """
+    Prints a string prefixed by the current date and time
+    """
 
-	print("[{0}] {1}".format(time.strftime("%H:%M:%S"), message))
+    print("[{0}] {1}".format(time.strftime("%H:%M:%S"), message))
 
 
 def compute_file_length(path, ignore_empty=False):
@@ -26,3 +26,11 @@ def compute_file_length(path, ignore_empty=False):
     """
 
     return sum(1 for line in open(path) if not line.startswith("#") and (len(line.strip()) > 1 or not ignore_empty))
+
+
+def float_to_string(f):
+    """
+    Converts float to string
+    """
+
+    return "{0:.2f}".format(f)

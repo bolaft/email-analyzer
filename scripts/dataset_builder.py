@@ -52,7 +52,7 @@ def build_datasets(opts):
     """
     
     # filenames
-    data_folder_files = os.listdir(opts.data_folder)[:100]
+    data_folder_files = os.listdir(opts.data_folder)
 
     ########################################
     

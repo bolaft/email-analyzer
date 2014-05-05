@@ -22,6 +22,7 @@ from nltk.metrics.segmentation import windowdiff, ghd, pk
 from optparse import OptionParser
 from sklearn import metrics
 from utility import timed_print, compute_file_length
+from utility import float_to_string as f
 
 # Input
 
@@ -36,15 +37,15 @@ PATTERN_FILE = "patterns.tsv"
 
 # Parameters
 
-USE_SYNTACTIC = True
-USE_STYLISTIC = True
-USE_LEXICAL = True
-USE_THEMATIC = True
+USE_SYNTACTIC = False
+USE_STYLISTIC = False
+USE_LEXICAL = False
+USE_THEMATIC = False
 
 
 def test_segment(opts, args):
     """
-    Performs and evaluates a test segmentation 
+    Perform and evaluate a test segmentation 
     """
 
     dirpath = "var/{0}/".format(args[0])
@@ -81,6 +82,8 @@ def test_segment(opts, args):
         model_file = "{0}model_{1}".format(dirpath, fold)
         result_file = "{0}result_{1}".format(dirpath, fold)
 
+        base_result_file = False if not opts.combine else "var/{0}/result_{1}".format(opts.combine, fold)
+
         timed_print("Training model...")
         subprocess.call("wapiti train -p {0} {1} {2}".format(pattern_file, train_file, model_file), shell=True)
 
@@ -88,7 +91,10 @@ def test_segment(opts, args):
         subprocess.call("wapiti label -m {0} -s -p {1} {2}".format(model_file, test_file, result_file) , shell=True)
 
         timed_print("Computing scores...")
-        scores.append(evaluate_segmentation(result_file, gold_file, train_file))
+        scores.append(evaluate_segmentation(
+            result_file, gold_file, train_file, 
+            base_result_file=base_result_file, smart_combine=opts.smart_combine
+        ))
 
     display_evaluations(scores)
 
@@ -116,19 +122,19 @@ def make_patterns(
             if syntactic:
                 for offset in [0, 9]:
                     for off_col in xrange(0, 3):
-                        base_col = off_col + offset
+                        col = off_col + offset
 
-                        out.write("*{0}:%x[{1},{2}]\n".format(i, off, base_col + 0)) # unigram 1
+                        out.write("*{0}:%x[{1},{2}]\n".format(i, off, col + 0)) # unigram 1
                         i += 1
-                        out.write("*{0}:%x[{1},{2}]\n".format(i, off, base_col + 3)) # unigram 2
+                        out.write("*{0}:%x[{1},{2}]\n".format(i, off, col + 3)) # unigram 2
                         i += 1
-                        out.write("*{0}:%x[{1},{2}]\n".format(i, off, base_col + 6)) # unigram 3
+                        out.write("*{0}:%x[{1},{2}]\n".format(i, off, col + 6)) # unigram 3
                         i += 1
-                        out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]\n".format(i, off, base_col + 0, base_col + 3)) # bigram 1
+                        out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]\n".format(i, off, col + 0, col + 3)) # bigram 1
                         i += 1
-                        out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]\n".format(i, off, base_col + 3, base_col + 6)) # bigram 2
+                        out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]\n".format(i, off, col + 3, col + 6)) # bigram 2
                         i += 1
-                        out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]/%x[{1},{4}]\n".format(i, off, base_col + 0, base_col + 3, base_col + 6)) # trigram
+                        out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]/%x[{1},{4}]\n".format(i, off, col + 0, col + 3, col + 6)) # trigram
                         i += 1
 
                     out.write("\n")
@@ -153,7 +159,6 @@ def make_patterns(
             out.write("\n")
 
 
-
 def write_k_folds(source_train, source_test, source_gold, target_folder, folds=10):
     """
     Splits the data into train and test files for the specified number of folds
@@ -172,13 +177,26 @@ def write_k_folds(source_train, source_test, source_gold, target_folder, folds=1
                             fold_train.write(linecache.getline(source_train, i))
 
 
+def evaluate_segmentation(result_file, gold_file, train_file, limit=-1, base_result_file=False, smart_combine=True):
+    """
+    Compute scores for the current fold
+    """
 
-# Evaluates the segmentation results
-def evaluate_segmentation(result_file, gold_file, train_file, limit=-1):
     d = "".join(data_to_list(train_file)) # training data
     g = "".join(data_to_list(gold_file, limit=limit)) # gold string
-    r = "".join(data_to_list(result_file, limit=limit, label_position=-2)) # result string
     t = "".join(data_to_list(result_file, limit=limit, label_position=-3)) # TextTiling string
+
+    result_data = data_to_list(result_file, limit=limit, label_position=-2)
+
+    if base_result_file:
+        base_result_data = data_to_list(base_result_file, limit=limit, label_position=-2)
+        result_data = data_to_list(result_file, limit=limit, label_position=-1)
+
+        max_boundaries = int(t.count("T") * (float(len(g)) / len(t))) if smart_combine else -1
+
+        r = combine_results(result_data, base_result_data, max_boundaries=max_boundaries)
+    else:
+        r = "".join(data_to_list(result_file, limit=limit, label_position=-2))
 
     avg_g = float(len(g)) / (g.count("T") + 1) # average segment size (reference)
     avg_d = float(len(d)) / (d.count("T") + 1) # average segment size (training)
@@ -221,91 +239,127 @@ def evaluate_segmentation(result_file, gold_file, train_file, limit=-1):
     rec_tt = metrics.recall_score(list(g), list(t), pos_label="T") * 100
     f_1_tt = (2.0 * (rec_tt * pre_tt)) / (rec_tt + pre_tt)
 
-    return acc_rs, acc_bl, acc_tt, pre_rs, pre_bl, pre_tt, rec_rs, rec_bl, rec_tt, f_1_rs, f_1_bl, f_1_tt, wdi_rs, wdi_bl, wdi_tt, bpk_rs, bpk_bl, bpk_tt, ghd_rs, ghd_bl, ghd_tt, g.count("T"), b.count("T"), r.count("T"), t.count("T")
-
-
-def dec(f):
-    return "{0:.2f}".format(f)
+    return (
+        acc_rs, acc_bl, acc_tt, 
+        pre_rs, pre_bl, pre_tt, 
+        rec_rs, rec_bl, rec_tt, 
+        f_1_rs, f_1_bl, f_1_tt, 
+        wdi_rs, wdi_bl, wdi_tt, 
+        bpk_rs, bpk_bl, bpk_tt, 
+        ghd_rs, ghd_bl, ghd_tt, 
+        g.count("T"), b.count("T"), r.count("T"), t.count("T")
+    )
 
 
 def data_to_list(path, limit=-1, label_position=-1):
+    """
+    Extract labels from data file
+    """
+
     s = []
 
-    with codecs.open(path, "r") as f:
-        for line in f:
+    with codecs.open(path, "r") as file_contents:
+        for raw_line in file_contents:
             if len(s) == limit:
                 break
-            if not line.startswith("#"):
+
+            line = raw_line.strip()
+
+            if not line.startswith("# 0"):
                 tokens = line.split()
 
                 if len(tokens) > 0:
-                    s.append(tokens[label_position].replace("O", "F").replace("S", "T"))
+                    s.append(tokens[label_position].replace("S", "T").replace("O", "F"))
 
     return s
 
 
+def combine_results(results, base_results, max_boundaries=-1):
+    """
+    Combine results with those of a base classifier
+    """
+    
+    scores = {}
+
+    for i, result in enumerate(results):
+        score = 0
+
+        if base_results[i] == "T":
+            score = 1
+        elif result[:result.index("/")] == "T":
+            score = float(result[result.index("/") + 1:])
+
+        scores[i] = score
+
+    sorted_indexes = sorted(scores, key=scores.get, reverse=True)
+    indexes = [index for index, score in scores.iteritems() if score > 0.99]
+
+    length = len(results)
+
+    r = "F" * length
+
+    for i, index in enumerate(sorted_indexes):
+        r = r[:index] + "T" + r[index + 1:]
+        if i == max_boundaries:
+            break
+    
+    for index in indexes:
+        r = r[:index] + "T" + r[index+1:]
+
+    return r
+
 
 def display_evaluations(scores):
-    total = (
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0, 0, 0, 0
-    )
+    """
+    Print out average scores in human-readable format
+    """
+
+    total = tuple(([0.0] * 3 * 7) + ([0] * 4)) 
 
     for s in scores:
         total = tuple(map(operator.add, s, total))
 
-    acc_rs, acc_bl, acc_tt, pre_rs, pre_bl, pre_tt, rec_rs, rec_bl, rec_tt, f_1_rs, f_1_bl, f_1_tt, wdi_rs, wdi_bl, wdi_tt, bpk_rs, bpk_bl, bpk_tt, ghd_rs, ghd_bl, ghd_tt, gcount, bcount, rcount, tcount = tuple(x/len(scores) for x in total)
-
-    print(scores_to_string(
-        acc_rs, acc_bl, acc_tt,
-        pre_rs, pre_bl, pre_tt,
-        rec_rs, rec_bl, rec_tt,
-        f_1_rs, f_1_bl, f_1_tt,
-        wdi_rs, wdi_bl, wdi_tt,
-        bpk_rs, bpk_bl, bpk_tt,
-        ghd_rs, ghd_bl, ghd_tt,
-        gcount, bcount, rcount, tcount
-    ))
+    print(scores_to_string(*tuple(x / len(scores) for x in total)))
 
 
 def scores_to_string(
-        acc_rs, acc_bl, acc_tt,
-        pre_rs, pre_bl, pre_tt,
-        rec_rs, rec_bl, rec_tt,
-        f_1_rs, f_1_bl, f_1_tt,
-        wdi_rs, wdi_bl, wdi_tt,
-        bpk_rs, bpk_bl, bpk_tt,
-        ghd_rs, ghd_bl, ghd_tt,
-        gcount, bcount, rcount, tcount):
+    ar, ab, at,
+    pr, pb, pt,
+    rr, rb, rt,
+    fr, fb, ft,
+    wr, wb, wt,
+    br, bb, bt,
+    gr, gb, gt,
+    g_count, b_count, r_count, t_count
+):
+    """
+    Convert scores to human-readable format
+    """
 
     s  = "#            \tResult:\t\tBase.:\tDiff.:\t\tT.T.:\tDiff.:\n"
-    s += "# WindowDiff:\t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(wdi_rs), dec(wdi_bl), dec(wdi_rs - wdi_bl), dec(wdi_tt), dec(wdi_rs - wdi_tt))
-    s += "# pk:        \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(bpk_rs), dec(bpk_bl), dec(bpk_rs - bpk_bl), dec(bpk_tt), dec(bpk_rs - bpk_tt))
-    s += "# ghd:       \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(ghd_rs), dec(ghd_bl), dec(ghd_rs - ghd_bl), dec(ghd_tt), dec(ghd_rs - ghd_tt))
+    s += "# WindowDiff:\t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(f(wr), f(wb), f(wr - wb), f(wt), f(wr - wt))
+    s += "# pk:        \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(f(br), f(bb), f(br - bb), f(bt), f(br - bt))
+    s += "# ghd:       \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(f(gr), f(gb), f(gr - gb), f(gt), f(gr - gt))
     s += "#\n"
     s += "#            \tResult:\t\tBase.:\tDiff.:\t\tT.T.:\tDiff.:\n"
-    s += "# accuracy:  \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(acc_rs), dec(acc_bl), dec(acc_rs - acc_bl), dec(acc_tt), dec(acc_rs - acc_tt))
+    s += "# accuracy:  \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(f(ar), f(ab), f(ar - ab), f(at), f(ar - at))
     s += "#\n"
     s += "#            \tResult:\t\tBase.:\tDiff.:\t\tT.T.:\tDiff.:\n"
-    s += "# precision: \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(pre_rs), dec(pre_bl), dec(pre_rs - pre_bl), dec(pre_tt), dec(pre_rs - pre_tt))
-    s += "# recall:    \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(rec_rs), dec(rec_bl), dec(rec_rs - rec_bl), dec(rec_tt), dec(rec_rs - rec_tt))
-    s += "# F1:        \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(dec(f_1_rs), dec(f_1_bl), dec(f_1_rs - f_1_bl), dec(f_1_tt), dec(f_1_rs - f_1_tt))
+    s += "# precision: \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(f(pr), f(pb), f(pr - pb), f(pt), f(pr - pt))
+    s += "# recall:    \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(f(rr), f(rb), f(rr - rb), f(rt), f(rr - rt))
+    s += "# F1:        \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(f(fr), f(fb), f(fr - fb), f(ft), f(fr - ft))
     s += "#\n"
     s += "#            \tResult:\tBase.:\tT.T.:\n"
-    s += "# seg. ratio:\tx{0}\tx{1}\tx{2}".format(dec(float(rcount) / gcount), dec(float(bcount) / gcount), dec(float(tcount) / gcount))
+    s += "# seg. ratio:\tx{0}\tx{1}\tx{2}".format(
+        f(float(r_count) / g_count), f(float(b_count) / g_count), f(float(t_count) / g_count)
+    )
 
     return s
 
 
 def parse_args():
     """
-     Parse command line options and arguments 
+    Parse command line options and arguments 
     """
 
     op = OptionParser(usage="usage: %prog [options] experiment_name")
@@ -380,6 +434,20 @@ def parse_args():
 
     ########################################
 
+    op.add_option("--combine",
+        dest="combine",
+        default=False,
+        type="string",
+        help="base experiment name for combination")
+
+    op.add_option("--smart_combine",
+        dest="smart_combine",
+        default=False,
+        action="store_true",
+        help="when combining, limit the number of boundaries based on average segment length in the training set")
+
+    ########################################
+
     op.add_option("--test",
         dest="test",
         default=False,
@@ -390,7 +458,7 @@ def parse_args():
     
     opts, args = op.parse_args()
 
-    if len(args) != 1:
+    if len(args) != 1 and not opts.test:
         op.error("missing argument \"experiment_name\"")
 
     return opts, args
