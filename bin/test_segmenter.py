@@ -13,27 +13,27 @@ import codecs
 import doctest
 import operator
 import linecache
-import math
 import os
 import subprocess
 
+from dataset_builder import WAPITI_TRAIN_FILE, WAPITI_TEST_FILE, WAPITI_GOLD_FILE, WAPITI_ORIGIN_FILE
+from math import ceil
 from nltk.metrics.scores import accuracy
 from nltk.metrics.segmentation import windowdiff, ghd, pk
 from optparse import OptionParser
+from progressbar import ProgressBar
 from sklearn import metrics
 from utility import timed_print, compute_file_length
 from utility import float_to_string as f
 
-# Input
 
-WAPITI_TRAIN_FILE = "var/wapiti_train.tsv"
-WAPITI_TEST_FILE = "var/wapiti_test.tsv"
-WAPITI_GOLD_FILE = "var/wapiti_gold.tsv"
-WAPITI_ORIGIN_FILE = "var/wapiti_origin.tsv"
+# output
 
-# Output
+PATTERN_FILE = "patterns"
 
-PATTERN_FILE = "patterns.tsv"
+# var
+
+VAR_FOLDER = "./../var/"
 
 
 def test_segment(opts, args):
@@ -41,15 +41,16 @@ def test_segment(opts, args):
     Perform and evaluate a test segmentation 
     """
 
-    dirpath = "var/{0}/".format(args[0])
+    experiment_folder = "{0}experiments/{1}/".format(VAR_FOLDER, args[0])
+    folds_folder = "{0}{1}_fold/".format(VAR_FOLDER, opts.folds)
 
-    # Makes the folder if it does not exist already
-    if not os.path.exists(dirpath):
-        os.makedirs(dirpath)
+    # makes the folder if it does not exist already
+    if not os.path.exists(experiment_folder):
+        os.makedirs(experiment_folder)
 
     timed_print("Building pattern file...")
 
-    pattern_file = dirpath + PATTERN_FILE
+    pattern_file = experiment_folder + PATTERN_FILE
 
     make_patterns(
         pattern_file,
@@ -60,7 +61,8 @@ def test_segment(opts, args):
     timed_print("Splitting input data...")
 
     write_k_folds(
-        opts.wapiti_train, opts.wapiti_test, opts.wapiti_gold, dirpath, 
+        opts.wapiti_train, opts.wapiti_test, opts.wapiti_gold, opts.wapiti_origin,
+        folds_folder, 
         folds=opts.folds
     )
 
@@ -69,21 +71,24 @@ def test_segment(opts, args):
     for fold in xrange(opts.folds):
         timed_print("Fold {0}...".format(fold + 1))
 
-        train_file = "{0}train_{1}".format(dirpath, fold)
-        test_file = "{0}test_{1}".format(dirpath, fold)
-        gold_file = "{0}gold_{1}".format(dirpath, fold)
-        model_file = "{0}model_{1}".format(dirpath, fold)
-        result_file = "{0}result_{1}".format(dirpath, fold)
+        train_file = "{0}train_{1}".format(folds_folder, fold)
+        test_file = "{0}test_{1}".format(folds_folder, fold)
+        gold_file = "{0}gold_{1}".format(folds_folder, fold)
+        model_file = "{0}model_{1}".format(experiment_folder, fold)
+        result_file = "{0}result_{1}".format(experiment_folder, fold)
 
         base_result_file = False if not opts.combine else "var/{0}/result_{1}".format(opts.combine, fold)
 
         timed_print("Training model...")
+
         subprocess.call("wapiti train -p {0} {1} {2}".format(pattern_file, train_file, model_file), shell=True)
 
         timed_print("Applying model on test data...")
+
         subprocess.call("wapiti label -m {0} -s -p {1} {2}".format(model_file, test_file, result_file) , shell=True)
 
         timed_print("Computing scores...")
+
         scores.append(evaluate_segmentation(
             result_file, gold_file, train_file, 
             base_result_file=base_result_file, smart_combine=opts.smart_combine
@@ -105,29 +110,31 @@ def make_patterns(
     with codecs.open(path, "w") as out:
         i = 1
 
-        window_left = int(math.ceil(window - (window * 1.5)))
+        window_left = int(ceil(window - (window * 1.5)))
         window_right = window_left + window
 
-        for off in xrange(window_left, window_right):
+        for offset in xrange(window_left, window_right):
 
-            off = str(off) if off < 1 else "+" + str(off)
+            x = str(offset) if offset < 1 else "+" + str(offset)
 
             if syntactic:
-                for offset in [0, 9]:
-                    for off_col in xrange(0, 3):
-                        col = off_col + offset
+                for group_offset in [0, 9]:
+                    for type_offset in xrange(0, 3):
+                        y = type_offset + group_offset
 
-                        out.write("*{0}:%x[{1},{2}]\n".format(i, off, col + 0)) # unigram 1
+                        # n-grams
+
+                        out.write("*{0}:%x[{1},{2}]\n".format(i, x, y + 0)) # uni 1
                         i += 1
-                        out.write("*{0}:%x[{1},{2}]\n".format(i, off, col + 3)) # unigram 2
+                        out.write("*{0}:%x[{1},{2}]\n".format(i, x, y + 3)) # uni 2
                         i += 1
-                        out.write("*{0}:%x[{1},{2}]\n".format(i, off, col + 6)) # unigram 3
+                        out.write("*{0}:%x[{1},{2}]\n".format(i, x, y + 6)) # uni 3
                         i += 1
-                        out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]\n".format(i, off, col + 0, col + 3)) # bigram 1
+                        out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]\n".format(i, x, y + 0, y + 3)) # bi 1
                         i += 1
-                        out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]\n".format(i, off, col + 3, col + 6)) # bigram 2
+                        out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]\n".format(i, x, y + 3, y + 6)) # bi 2
                         i += 1
-                        out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]/%x[{1},{4}]\n".format(i, off, col + 0, col + 3, col + 6)) # trigram
+                        out.write("*{0}:%x[{1},{2}]/%x[{1},{3}]/%x[{1},{4}]\n".format(i, x, y + 0, y + 3, y + 6)) # tri
                         i += 1
 
                     out.write("\n")
@@ -137,37 +144,56 @@ def make_patterns(
             start_thematic = start_lexical + (nb_lexical if lexical else 0)
             end = start_thematic + (nb_thematic if thematic else 0)
 
-            for col in xrange(start_stylistic, start_lexical):
-                out.write("*{0}:%x[{1},{2}]\n".format(i, off, col))
+            for y in xrange(start_stylistic, start_lexical):
+                out.write("*{0}:%x[{1},{2}]\n".format(i, x, y))
                 i += 1
 
-            for col in xrange(start_lexical, start_thematic):
-                out.write("*{0}:%x[{1},{2}]\n".format(i, off, col))
+            for y in xrange(start_lexical, start_thematic):
+                out.write("*{0}:%x[{1},{2}]\n".format(i, x, y))
                 i += 1
 
-            for col in xrange(start_thematic, end):
-                out.write("*{0}:%x[{1},{2}]\n".format(i, off, col))
+            for y in xrange(start_thematic, end):
+                out.write("*{0}:%x[{1},{2}]\n".format(i, x, y))
                 i += 1
 
             out.write("\n")
 
 
-def write_k_folds(source_train, source_test, source_gold, target_folder, folds=10):
+def write_k_folds(source_train, source_test, source_gold, source_origin, target_folder, folds=10):
     """
     Splits the data into train and test files for the specified number of folds
     """
 
-    for fold in xrange(folds):
-        with codecs.open("{0}/train_{1}".format(target_folder, fold), "w") as fold_train:
-            with codecs.open("{0}/test_{1}".format(target_folder, fold), "w") as fold_test:
-                with codecs.open("{0}/gold_{1}".format(target_folder, fold), "w") as fold_gold:
-                
-                    for i in xrange(compute_file_length(source_gold)):
-                        if i % folds == fold:
-                            fold_test.write(linecache.getline(source_test, i))
-                            fold_gold.write(linecache.getline(source_gold, i))
-                        else:
-                            fold_train.write(linecache.getline(source_train, i))
+    if not os.path.exists(target_folder):
+        os.makedirs(target_folder)
+
+    filenames = os.listdir(target_folder)
+
+    progress = ProgressBar()
+
+    for fold in progress(xrange(folds)):
+        fold_train = fold_test = fold_gold = fold_origin = False
+
+        if not "train_{0}".format(fold) in filenames:
+            fold_train = codecs.open("{0}/train_{1}".format(target_folder, fold), "w")
+        if not "test_{0}".format(fold) in filenames:
+            fold_test = codecs.open("{0}/test_{1}".format(target_folder, fold), "w")
+        if not "gold_{0}".format(fold) in filenames:
+            fold_gold = codecs.open("{0}/gold_{1}".format(target_folder, fold), "w")
+        if not "origin_{0}".format(fold) in filenames:
+            fold_origin = codecs.open("{0}/origin_{1}".format(target_folder, fold), "w")
+
+        for i in xrange(compute_file_length(source_gold)):
+            if i % folds == fold:
+                if fold_gold:
+                    fold_gold.write(linecache.getline(source_gold, i))
+                if fold_test:
+                    fold_test.write(linecache.getline(source_test, i))
+                if fold_origin:
+                    fold_origin.write(linecache.getline(source_origin, i))
+            else:
+                if fold_train:
+                    fold_train.write(linecache.getline(source_train, i))
 
 
 def evaluate_segmentation(result_file, gold_file, train_file, limit=-1, base_result_file=False, smart_combine=True):
@@ -175,9 +201,9 @@ def evaluate_segmentation(result_file, gold_file, train_file, limit=-1, base_res
     Compute scores for the current fold
     """
 
-    d = "".join(data_to_list(train_file)) # training string
-    g = "".join(data_to_list(gold_file, limit=limit)) # gold string
-    t = "".join(data_to_list(result_file, limit=limit, label_position=-3)) # TextTiling string
+    d = data_to_list(train_file) # training label list
+    g = data_to_list(gold_file, limit=limit) # gold label list
+    t = data_to_list(result_file, limit=limit, label_position=-3) # TextTiling label list
 
     result_data = data_to_list(result_file, limit=limit, label_position=-2)
 
@@ -185,21 +211,26 @@ def evaluate_segmentation(result_file, gold_file, train_file, limit=-1, base_res
         base_result_data = data_to_list(base_result_file, limit=limit, label_position=-2)
         result_data = data_to_list(result_file, limit=limit, label_position=-1)
 
-        max_boundaries = int(t.count("T") * (float(len(g)) / len(t))) if smart_combine else -1
+        max_boundaries = int(d.count("T") * (float(len(g)) / len(d))) if smart_combine else -1
 
-        r = combine_results(result_data, base_result_data, max_boundaries=max_boundaries) # result string
+        r = combine_results(result_data, base_result_data, max_boundaries=max_boundaries) # result label list
     else:
-        r = "".join(data_to_list(result_file, limit=limit, label_position=-2)) # result string
+        r = data_to_list(result_file, limit=limit, label_position=-2) # result label list
 
     avg_g = float(len(g)) / (g.count("T") + 1) # average segment size (reference)
     avg_d = float(len(d)) / (d.count("T") + 1) # average segment size (training)
 
     k = int(avg_g / 2) # window size for WindowDiff
 
-    b = ("T" + (int(math.floor(avg_d)) - 1) * "F") * int(math.ceil(float(len(d)) / int(math.floor(avg_d))))
-    b = b[:len(g)] # baseline string
+    b = list("T" + (int(ceil(avg_d) - 1) * "F")) * int(float(len(g)) / avg_d)
+    b = b[:len(g)] # baseline label list
 
     ########################################
+    
+    print(len(g))
+    print(len(r))
+    print(len(b))
+    print(len(t))
 
     # WindowDiff, Beeferman's Pk, Generalized Hamming Distance
     wdi_rs, bpk_rs, ghd_rs = compute_segmentation_scores(g, r, k)
@@ -244,7 +275,7 @@ def data_to_list(path, limit=-1, label_position=-1):
 
             line = raw_line.strip()
 
-            if not line.startswith("# 0"):
+            if not line.startswith("#"):
                 tokens = line.split()
 
                 if len(tokens) > 0:
@@ -270,8 +301,8 @@ def compute_ir_scores(reference, results, label="T"):
     Compute precision, recall and f-measure
     """
 
-    precision = metrics.precision_score(list(reference), list(results), pos_label=label)
-    recall = metrics.recall_score(list(reference), list(results), pos_label=label)
+    precision = metrics.precision_score(reference, results, pos_label=label)
+    recall = metrics.recall_score(reference, results, pos_label=label)
     f1 = (2.0 * (recall * precision)) / (recall + precision)
 
     return precision, recall, f1
@@ -309,7 +340,7 @@ def combine_results(results, base_results, max_boundaries=-1):
     for index in indexes:
         r = r[:index] + "T" + r[index+1:]
 
-    return r
+    return list(r)
 
 
 def display_evaluations(scores):
@@ -317,7 +348,7 @@ def display_evaluations(scores):
     Print out average scores in human-readable format
     """
 
-    total = tuple(([0.0] * 3 * 7) + ([0] * 4)) 
+    total = tuple(([0.0] * 3 * 7) + ([0] * 4))
 
     for s in scores:
         total = tuple(map(operator.add, s, total))
@@ -353,7 +384,7 @@ def scores_to_string(
     s += "# F1:        \t{0}%\t\t{1}%\t{2}%\t\t{3}\t{4}\n".format(f(fr), f(fb), f(fr - fb), f(ft), f(fr - ft))
     s += "#\n"
     s += "#            \tResult:\tBase.:\tT.T.:\n"
-    s += "# seg. ratio:\tx{0}\tx{1}\tx{2}".format(
+    s += "# seg. ratio:\t{0}%\t{1}%\t{2}%".format(
         f(float(r_count) / g_count), f(float(b_count) / g_count), f(float(t_count) / g_count)
     )
 
@@ -463,6 +494,9 @@ def parse_args():
 
     if len(args) != 1 and not opts.test:
         op.error("missing argument \"experiment_name\"")
+
+    if not opts.syntactic and not opts.stylistic and not opts.lexical and not opts.thematic:
+        op.error("at least one feature set must be specified")
 
     return opts, args
 

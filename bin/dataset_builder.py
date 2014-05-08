@@ -20,24 +20,24 @@ from optparse import OptionParser
 from progressbar import ProgressBar
 from utility import timed_print, compute_file_length, average, standard_deviation
 
-# Default parameters
+# default parameters
 
 OCCURRENCE_THRESHOLD_QUOTIENT = 0.075 / 150 # words that appear less than (quotient * total tokens) times are ignored
 
-# Default paths
+# default paths
 
 DATA_FOLDER = "../data/email.message.tagged/" # folder where heuristically labelled emails are stored
 TT_FOLDER = "../data/TT/ubuntu-users/" # folder where emails labelled by text-tiling are stored
-NGRAMS_FILE = "var/ngrams" # file containing relevant ngrams
+NGRAMS_FILE = "../var/ngrams" # file containing relevant ngrams
 
-WAPITI_TRAIN_FILE = "var/wapiti_train.tsv"
-WAPITI_TEST_FILE = "var/wapiti_test.tsv"
-WAPITI_GOLD_FILE = "var/wapiti_gold.tsv"
-WAPITI_ORIGIN_FILE = "var/wapiti_origin.tsv"
+WAPITI_TRAIN_FILE = "../var/wapiti_train.tsv"
+WAPITI_TEST_FILE = "../var/wapiti_test.tsv"
+WAPITI_GOLD_FILE = "../var/wapiti_gold.tsv"
+WAPITI_ORIGIN_FILE = "../var/wapiti_origin.tsv"
 
-WEKA_ARFF_FILE = "var/weka.arff"
+WEKA_ARFF_FILE = "../var/weka.arff"
 
-# Constants
+# constants
 
 LABELS = ["T", "F"]
 
@@ -49,6 +49,9 @@ def build_datasets(opts):
     
     # filenames
     data_folder_files = os.listdir(opts.data_folder)
+
+    if options.limit > 0:
+        data_folder_files = data_folder_files[:options.limit]
 
     ########################################
     
@@ -217,16 +220,19 @@ def export_weka_arff(datasets, arff_file, labels):
     Exports the dataset to a Weka ARFF file
     """
 
+    forbidden_types = ["string"] # not handled by all Weka classifiers
+
     with codecs.open(arff_file, "w") as out:
         # write header
         out.write("@relation segmenter\n\n")
 
         # writing attributes
         features_0 = datasets[0][0][2] # first line's features
-        attributes = [(name, attribute_type) for value, name, attribute_type in features_0]
+        attributes = [(name, attribute_type) for value, name, attribute_type in features_0 if attribute_type not in forbidden_types]
 
         for feature_name, feature_type in attributes:
-            out.write("@attribute {0} {1}\n".format(feature_name, feature_type))
+            if feature_type not in forbidden_types:
+                out.write("@attribute {0} {1}\n".format(feature_name, feature_type))
 
         # writing labels
         out.write("@attribute class {")
@@ -589,11 +595,13 @@ def discretize_feature(averages, name, value):
         elif value < average_value / 2:
             tier = "lowest"
 
-        return "{0}_{1}".format(name, tier)
+        discrete_feature = "{0}_{1}".format(name, tier)
     elif type(value) is bool:
-        return "{0}_{1}".format(name, value)
+        discrete_feature = "{0}_{1}".format(name, value)
     else:
-        return str(value)
+        discrete_feature = str(value)
+
+    return discrete_feature.replace("#", "\\#")
 
 
 def compute_max_file_length(paths):
@@ -669,6 +677,14 @@ def parse_args():
     """
 
     op = OptionParser(usage="usage: %prog [opts]")
+
+    ########################################
+    
+    op.add_option("-l", "--limit",
+        dest="limit",
+        default=0,
+        type="int",
+        help="limits the number of source files used (defaults to 0)")
 
     ########################################
     

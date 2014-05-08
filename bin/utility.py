@@ -20,12 +20,15 @@ def timed_print(message):
     print("[{0}] {1}".format(time.strftime("%H:%M:%S"), message))
 
 
-def compute_file_length(path, ignore_empty=False):
+def compute_file_length(path, ignore_empty=False, comment_char="#"):
     """
     Compute the length of a file
     """
 
-    return sum(1 for line in open(path) if not line.startswith("#") and (len(line.strip()) > 1 or not ignore_empty))
+    return sum(
+        1 for line in open(path) 
+        if not line.startswith(comment_char) and (len(line.strip()) > 1 or not ignore_empty)
+    )
 
 
 def float_to_string(f):
