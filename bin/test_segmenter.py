@@ -44,48 +44,49 @@ def test_segment(opts, args):
     experiment_folder = "{0}experiments/{1}/".format(VAR_FOLDER, args[0])
     folds_folder = "{0}{1}_fold/".format(VAR_FOLDER, opts.folds)
 
-    # makes the folder if it does not exist already
-    if not os.path.exists(experiment_folder):
-        os.makedirs(experiment_folder)
+    # # makes the folder if it does not exist already
+    # if not os.path.exists(experiment_folder):
+    #     os.makedirs(experiment_folder)
 
-    timed_print("Building pattern file...")
+    # timed_print("Building pattern file...")
 
-    pattern_file = experiment_folder + PATTERN_FILE
+    # pattern_file = experiment_folder + PATTERN_FILE
 
-    make_patterns(
-        pattern_file,
-        opts.window,
-        syntactic=opts.syntactic, stylistic=opts.stylistic, lexical=opts.lexical, thematic=opts.thematic
-    )
+    # make_patterns(
+    #     pattern_file,
+    #     opts.window,
+    #     syntactic=opts.syntactic, stylistic=opts.stylistic, lexical=opts.lexical, thematic=opts.thematic
+    # )
 
-    timed_print("Splitting input data...")
+    # timed_print("Splitting input data...")
 
-    write_k_folds(
-        opts.wapiti_train, opts.wapiti_test, opts.wapiti_gold, opts.wapiti_origin,
-        folds_folder, 
-        folds=opts.folds
-    )
+    # write_k_folds(
+    #     opts.wapiti_train, opts.wapiti_test, opts.wapiti_gold, opts.wapiti_origin,
+    #     folds_folder, 
+    #     folds=opts.folds
+    # )
 
     scores = []
 
     for fold in xrange(opts.folds):
         timed_print("Fold {0}...".format(fold + 1))
 
-        train_file = "{0}train_{1}".format(folds_folder, fold)
-        test_file = "{0}test_{1}".format(folds_folder, fold)
-        gold_file = "{0}gold_{1}".format(folds_folder, fold)
+        train_file = "{0}train_{1}".format(experiment_folder, fold)
+        test_file = "{0}test_{1}".format(experiment_folder, fold)
+        gold_file = "{0}gold_{1}".format(experiment_folder, fold)
         model_file = "{0}model_{1}".format(experiment_folder, fold)
         result_file = "{0}result_{1}".format(experiment_folder, fold)
+        print result_file
+        print gold_file
+        base_result_file = False if not opts.combine else "../var/{0}/result_{1}".format(opts.combine, fold)
 
-        base_result_file = False if not opts.combine else "var/{0}/result_{1}".format(opts.combine, fold)
+        # timed_print("Training model...")
 
-        timed_print("Training model...")
+        # subprocess.call("wapiti train -p {0} {1} {2}".format(pattern_file, train_file, model_file), shell=True)
 
-        subprocess.call("wapiti train -p {0} {1} {2}".format(pattern_file, train_file, model_file), shell=True)
+        # timed_print("Applying model on test data...")
 
-        timed_print("Applying model on test data...")
-
-        subprocess.call("wapiti label -m {0} -s -p {1} {2}".format(model_file, test_file, result_file) , shell=True)
+        # subprocess.call("wapiti label -m {0} -s -p {1} {2}".format(model_file, test_file, result_file) , shell=True)
 
         timed_print("Computing scores...")
 
@@ -226,11 +227,6 @@ def evaluate_segmentation(result_file, gold_file, train_file, limit=-1, base_res
     b = b[:len(g)] # baseline label list
 
     ########################################
-    
-    print(len(g))
-    print(len(r))
-    print(len(b))
-    print(len(t))
 
     # WindowDiff, Beeferman's Pk, Generalized Hamming Distance
     wdi_rs, bpk_rs, ghd_rs = compute_segmentation_scores(g, r, k)
@@ -308,7 +304,7 @@ def compute_ir_scores(reference, results, label="T"):
     return precision, recall, f1
 
 
-def combine_results(results, base_results, max_boundaries=-1):
+def combine_results(results, base_results, max_boundaries=-1, min_confidence=0.75):
     """
     Combine results with those of a base classifier
     """
@@ -323,22 +319,17 @@ def combine_results(results, base_results, max_boundaries=-1):
         elif result[:result.index("/")] == "T":
             score = float(result[result.index("/") + 1:])
 
-        scores[i] = score
+        if score >= min_confidence:
+            scores[i] = score
 
     sorted_indexes = sorted(scores, key=scores.get, reverse=True)
-    indexes = [index for index, score in scores.iteritems() if score > 0.99]
 
     length = len(results)
 
     r = "F" * length
 
-    for i, index in enumerate(sorted_indexes):
+    for index in sorted_indexes[:max_boundaries]:
         r = r[:index] + "T" + r[index + 1:]
-        if i == max_boundaries:
-            break
-    
-    for index in indexes:
-        r = r[:index] + "T" + r[index+1:]
 
     return list(r)
 

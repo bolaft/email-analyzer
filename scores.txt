@@ -1,677 +1,162 @@
+SMART COMBINE
 
-===========================================================
-
-all_win2
-
-#             Result:   Base.:  Diff.:    T.T.: Diff.:
-# WindowDiff: 39.39%    59.24%  -19.85%   40.79 -1.39
-# pk:         1.93%   7.54% -5.61%    2.74  -0.81
-# ghd:        39.39%    55.17%  -15.78%   37.95 1.44
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# WindowDiff:	45.32%		61.13%	-15.81%		41.28	4.04
+# pk:        	12.55%		19.92%	-7.37%		7.90	4.65
+# ghd:       	40.45%		49.55%	-9.10%		38.50	1.95
 #
-#             Result:   Base.:  Diff.:    T.T.: Diff.:
-# accuracy:   80.30%    51.64%  28.66%    77.91 2.39
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# accuracy:  	74.33%		56.25%	18.08%		77.66	-3.32
 #
-#             Result:   Base.:  Diff.:    T.T.: Diff.:
-# precision:  100.00%   32.39%  67.61%    78.04 21.96
-# recall:     40.25%    43.69%  -3.44%    45.86 -5.62
-# F1:         57.38%    37.03%  20.35%    57.77 -0.39
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# precision: 	58.28%		32.37%	25.91%		75.55	-17.26
+# recall:    	69.54%		33.73%	35.81%		44.59	24.95
+# F1:        	63.40%		33.03%	30.37%		56.07	7.33
 #
-#             Result: Base.:  T.T.:
-# seg. ratio: x0.40 x1.34 x0.59
+#            	Result:	Base.:	T.T.:
+# seg. ratio:	119.41%	104.37%	58.99%
 
-===========================================================
+COMBINE
 
-Features visuelles uniquement :
-
-#                     Result:   Base.:  Diff.:            T.T.:   Diff.:
-# WindowDiff: 50.41%    59.24%  -8.83%    40.79 9.62
-# pk:                 5.11%   7.54% -2.44%    2.74          2.37
-# ghd:        43.14%    55.17%  -12.04%   37.95 5.19
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# WindowDiff:	45.31%		61.13%	-15.82%		41.28	4.03
+# pk:        	12.54%		19.92%	-7.38%		7.90	4.65
+# ghd:       	40.44%		49.55%	-9.11%		38.50	1.94
 #
-#                     Result:   Base.:  Diff.:            T.T.:         Diff.:
-# accuracy:   70.06%    51.64%  18.42%    77.91 -7.84
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# accuracy:  	74.34%		56.25%	18.09%		77.66	-3.32
 #
-#                     Result:   Base.:  Diff.:            T.T.:         Diff.:
-# precision:  54.22%    32.39%  21.83%    78.04 -23.82
-# recall:     59.51%    43.69%  15.82%    45.86 13.65
-# F1:         56.72%    37.03%  19.69%    57.77 -1.05
-
-===========================================================
-
-Tokens "charnières" uniquement :
-
-#                     Result:   Base.:  Diff.:            T.T.:         Diff.:
-# WindowDiff: 48.89%    59.24%  -10.36%   40.79 8.10
-# pk:                 5.33%   7.54% -2.21%    2.74    2.59
-# ghd:        42.24%    55.17%  -12.93%   37.95 4.29
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# precision: 	58.29%		32.37%	25.92%		75.55	-17.25
+# recall:    	69.51%		33.73%	35.78%		44.59	24.92
+# F1:        	63.40%		33.03%	30.37%		56.07	7.33
 #
-#                     Result:   Base.:  Diff.:            T.T.:         Diff.:
-# accuracy:   71.65%    51.64%  20.01%    77.91 -6.26
+#            	Result:	Base.:	T.T.:
+# seg. ratio:	119.35%	104.37%	58.99%
+
+COMBINE WITH 99.9% CONFIDENCE
+
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# WindowDiff:	36.49%		61.13%	-24.64%		41.28	-4.79
+# pk:        	5.46%		19.92%	-14.46%		7.90	-2.44
+# ghd:       	36.17%		49.55%	-13.38%		38.50	-2.32
 #
-#                     Result:   Base.:  Diff.:            T.T.:         Diff.:
-# precision:  56.40%    32.39%  24.01%    78.04 -21.64
-# recall:     62.54%    43.69%  18.86%    45.86 16.68
-
-===========================================================
-
-Text Tiling uniquement :
-
-#                     Result:   Base.:  Diff.:            T.T.:   Diff.:
-# WindowDiff: 41.81%    59.24%  -17.44%   40.79 1.02
-# pk:                 3.29%   7.54% -4.25%    2.74           0.55
-# ghd:        37.70%    55.17%  -17.48%   37.95 -0.25
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# accuracy:  	81.63%		56.25%	25.38%		77.66	3.97
 #
-#                     Result:   Base.:  Diff.:            T.T.:         Diff.:
-# accuracy:   76.57%    51.64%  24.93%    77.91 -1.34
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# precision: 	95.63%		32.37%	63.26%		75.55	20.09
+# recall:    	44.62%		33.73%	10.89%		44.59	0.03
+# F1:        	60.84%		33.03%	27.81%		56.07	4.77
 #
-#                     Result:   Base.:  Diff.:            T.T.:        Diff.:
-# precision:  72.70%    32.39%  40.31%    78.04 -5.34
-# recall:     46.64%    43.69%  2.95%   45.86 0.78
-# F1:         56.75%    37.03%  19.72%    57.77 -1.03
+#            	Result:	Base.:	T.T.:
+# seg. ratio:	46.63%	104.37%	58.99%
 
-===========================================================
+COMBINE WITH 99% CONFIDENCE
 
-Ngrams uniquement :
-
-#                     Result:   Base.:  Diff.:            T.T.:         Diff.:
-# WindowDiff: 43.41%    59.24%  -15.84%   40.79 2.62
-# pk:           3.27%   7.54% -4.28%    2.74          0.53
-# ghd:        38.32%    55.17%  -16.85%   37.95 0.37
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# WindowDiff:	36.16%		61.13%	-24.97%		41.28	-5.12
+# pk:        	6.91%		19.92%	-13.02%		7.90	-0.99
+# ghd:       	34.16%		49.55%	-15.40%		38.50	-4.34
 #
-#                     Result:   Base.:  Diff.:            T.T.:         Diff.:
-# accuracy:   75.39%    51.64%  23.75%    77.91 -2.52
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# accuracy:  	80.93%		56.25%	24.68%		77.66	3.27
 #
-#                     Result:   Base.:  Diff.:            T.T.:         Diff.:
-# precision:  68.54%    32.39%  36.15%    78.04 -9.50
-# recall:     46.90%    43.69%  3.22%   45.86 1.04
-# F1:         55.68%    37.03%  18.65%    57.77 -2.09
-
-===========================================================
-
-TT full 7k
-
-#             Result:   Base.:  Diff.:    T.T.: Diff.:
-# WindowDiff: 46.44%    59.88%  -13.44%   40.93 5.51
-# pk:         11.49%    18.12%  -6.63%    6.96  4.53
-# ghd:        40.94%    51.42%  -10.48%   38.10 2.84
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# precision: 	80.07%		32.37%	47.70%		75.55	4.53
+# recall:    	53.77%		33.73%	20.04%		44.59	9.18
+# F1:        	64.32%		33.03%	31.29%		56.07	8.25
 #
-#             Result:   Base.:  Diff.:    T.T.: Diff.:
-# accuracy:   73.49%    54.83%  18.66%    77.75 -4.25
+#            	Result:	Base.:	T.T.:
+# seg. ratio:	67.17%	104.37%	58.99%
+
+
+LEXICAL
+
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# WindowDiff:	38.99%		59.84%	-20.85%		41.28	-2.29
+# pk:        	5.57%		25.56%	-20.00%		7.90	-2.33
+# ghd:       	39.00%		60.05%	-21.05%		38.50	0.50
 #
-#             Result:   Base.:  Diff.:    T.T.: Diff.:
-# precision:  57.84%    33.30%  24.54%    77.05 -19.21
-# recall:     69.63%    39.33%  30.30%    45.29 24.35
-# F1:         63.17%    35.81%  27.36%    57.02 6.15
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# accuracy:  	80.50%		49.84%	30.66%		77.66	2.84
 #
-#             Result: Base.:  T.T.:
-# seg. ratio: x1.21 x1.18 x0.59
-
-===========================================================
-
-WITH 100 ngram features 1k
-
-#             Result:   Base.:  Diff.:    T.T.: Diff.:
-# WindowDiff: 44.50%    61.95%  -17.45%   40.46 4.05
-# pk:         14.63%    22.12%  -7.49%    8.20  6.43
-# ghd:        38.05%    51.07%  -13.02%   37.29 0.76
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# precision: 	100.00%		31.84%	68.16%		75.55	24.45
+# recall:    	39.05%		49.77%	-10.71%		44.59	-5.54
+# F1:        	56.16%		38.83%	17.33%		56.07	0.09
 #
-#             Result:   Base.:  Diff.:    T.T.: Diff.:
-# accuracy:   73.32%    57.02%  16.31%    78.38 -5.06
+#            	Result:	Base.:	T.T.:
+# seg. ratio:	x0.39	x1.56	x0.59
+
+SYNTACTIC
+
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# WindowDiff:	43.51%		59.84%	-16.32%		41.28	2.23
+# pk:        	11.77%		25.56%	-13.80%		7.90	3.87
+# ghd:       	38.88%		60.05%	-21.17%		38.50	0.38
 #
-#             Result:   Base.:  Diff.:    T.T.: Diff.:
-# precision:  54.98%    31.06%  23.92%    75.56 -20.57
-# recall:     66.67%    34.17%  32.50%    42.50 24.17
-# F1:         60.26%    32.54%  27.72%    54.40 5.86
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# accuracy:  	75.42%		49.84%	25.58%		77.66	-2.23
 #
-#             Result: Base.:  T.T.:
-# seg. ratio: x1.21 x1.10 x0.56
-
-===========================================================
-
-NO ngram features 1k
-
-#             Result:   Base.:  Diff.:    T.T.: Diff.:
-# WindowDiff: 46.02%    61.95%  -15.93%   40.46 5.56
-# pk:         14.77%    22.12%  -7.35%    8.20  6.57
-# ghd:        40.71%    51.07%  -10.37%   37.29 3.41
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# precision: 	60.14%		31.84%	28.30%		75.55	-15.40
+# recall:    	68.66%		49.77%	18.90%		44.59	24.07
+# F1:        	64.11%		38.83%	25.29%		56.07	8.04
 #
-#             Result:   Base.:  Diff.:    T.T.: Diff.:
-# accuracy:   72.69%    57.02%  15.68%    78.38 -5.69
+#            	Result:	Base.:	T.T.:
+# seg. ratio:	x1.14	x1.56	x0.59
+
+THEMATIC
+
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# WindowDiff:	39.08%		59.84%	-20.76%		41.28	-2.20
+# pk:        	5.95%		25.56%	-19.62%		7.90	-1.95
+# ghd:       	38.53%		60.05%	-21.52%		38.50	0.03
 #
-#             Result:   Base.:  Diff.:    T.T.: Diff.:
-# precision:  54.23%    31.06%  23.16%    75.56 -21.33
-# recall:     64.17%    34.17%  30.00%    42.50 21.67
-# F1:         58.78%    32.54%  26.24%    54.40 4.38
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# accuracy:  	80.05%		49.84%	30.21%		77.66	2.40
 #
-#             Result: Base.:  T.T.:
-# seg. ratio: x1.18 x1.10 x0.56
-
-
-===========================================================
-
-full_tt
-
-# Cross-validation:
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# precision: 	94.34%		31.84%	62.50%		75.55	18.80
+# recall:    	40.08%		49.77%	-9.68%		44.59	-4.51
+# F1:        	56.24%		38.83%	17.41%		56.07	0.17
 #
-#             Result:   Base.:  Diff.:    TT.:  Diff.:
-# WindowDiff: 45.78%    59.88%  -14.10%   40.93 4.84
-# pk:         10.97%    18.12%  -7.15%    6.96  4.02
-# ghd:        39.80%    51.42%  -11.62%   38.10 1.70
+#            	Result:	Base.:	T.T.:
+# seg. ratio:	x0.42	x1.56	x0.59
+
+STYLISTIC
+
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# WindowDiff:	41.85%		59.84%	-17.99%		41.28	0.57
+# pk:        	9.06%		25.56%	-16.51%		7.90	1.16
+# ghd:       	38.24%		60.05%	-21.81%		38.50	-0.26
 #
-#             Result:   Base.:  Diff.:    TT.:  Diff.:
-# accuracy:   73.49%    54.83%  18.66%    77.75 -4.25
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# accuracy:  	76.84%		49.84%	27.00%		77.66	-0.81
 #
-#             Result:   Base.:  Diff.:    TT.:  Diff.:
-# precision:  58.47%    33.30%  25.16%    77.05 -18.59
-# recall:     65.06%    39.33%  25.73%    45.29 19.77
-# F1:         61.56%    35.81%  25.75%    57.02 4.54
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# precision: 	69.35%		31.84%	37.51%		75.55	-6.19
+# recall:    	49.84%		49.77%	0.07%		44.59	5.25
+# F1:        	57.89%		38.83%	19.06%		56.07	1.82
 #
-#             Result: Base.:  TT.:
-# seg. ratio: x1.11 x1.18 x0.59
+#            	Result:	Base.:	T.T.:
+# seg. ratio:	x0.72	x1.56	x0.59
 
+ALL FOUR
 
-============================================================
-
-standard_dev_30k
-
-dataset_size: 6967/30000
-98 ignored messages
-average = 15
-standard deviation = 82
-
-# Cross-validation:
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# WindowDiff:	38.99%		59.84%	-20.85%		41.28	-2.29
+# pk:        	 5.57%		25.56%	-20.00%		7.90	-2.33
+# ghd:       	39.00%		60.05%	-21.05%		38.50	0.50
 #
-#             Result: Base.:  Diff.:
-# WindowDiff: 46.00%  59.88%  -13.88
-# pk:         11.18%  18.12%  -6.94
-# ghd:        40.23%  51.42%  -11.19
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# accuracy:  	80.50%		49.84%	30.66%		77.66	2.84
 #
-#             Result: Base.:  Diff.:
-# accuracy:   73.24%  54.83%  18.41
+#            	Result:		Base.:	Diff.:		T.T.:	Diff.:
+# precision: 	100.00%		31.84%	68.16%		75.55	24.45
+# recall:    	39.05%		49.77%	-10.71%		44.59	-5.54
+# F1:        	56.16%		38.83%	17.33%		56.07	0.09
 #
-#             Result: Base.:  Diff.:
-# precision:  57.98%  33.30%  24.68
-# recall:     65.62%  39.33%  26.28
-# F1:         61.53%  35.81%  25.71
-#
-#             Result: Base.:
-# seg. ratio: x1.13 x1.18
-
-============================================================
-
-first_last_tokens_filter_i_occ_min_50pm_25k
-
-* Per label statistics
-    T       Pr=0.45  Rc=0.67  F1=0.54
-    F       Pr=0.91  Rc=0.79  F1=0.84
-* Done
-[15:08:57] Evaluating segmentation...
-#             Result: Base.:  Diff.:
-# WindowDiff: 59.44%  70.71%  11.26
-# pk:         14.73%  19.17%  4.44
-# ghd:        38.80%  46.93%  8.13
-#
-#             Result: Base.:
-# seg. ratio: x1.51 x1.24
-
-============================================================
-
-first_last_tokens_filter_i_25k
-
-#           Result: Base.:  Diff.:
-# WindowDiff: 57.22%  70.44%  13.22
-# pk:         13.92%  18.99%  5.08
-# ghd:        37.22%  46.65%  9.43
-
-#           Result: Base.:
-# seg. ratio: x1.47 x1.24
-
-
-============================================================
-
-first_last_tokens_filter_i
-
-          Result: Base.:  Diff.:
-WindowDiff: 61.79%  66.09%  4.30
-pk:         14.92%  18.28%  3.36
-ghd:        40.45%  44.06%  3.61
-
-result/gold segment ratio: x1.30
-
-============================================================
-
-first_last_tokens_filter_i_10k
-
-          Result: Base.:  Diff.:
-WindowDiff: 52.18%  67.74%  15.56
-pk:         17.83%  24.64%  6.81
-ghd:        33.85%  44.21%  10.36
-
-result/gold segment ratio: x1.42
-
-============================================================
-
-word seq label ac POS & filter consecutives:
-    T       Pr=0.83  Rc=0.78  F1=0.80
-    F       Pr=0.76  Rc=0.80  F1=0.78
-
-word seq label ac POS:
-    T       Pr=0.61  Rc=0.47  F1=0.53
-    F       Pr=0.83  Rc=0.89  F1=0.86
-
-label BoW 1000 1st mails:
-    T       Pr=1.00  Rc=0.02  F1=0.04
-    F       Pr=0.78  Rc=1.00  F1=0.88
-
-seq label not vector 1000:
-    T       Pr=1.00  Rc=0.31  F1=0.47
-    F       Pr=0.83  Rc=1.00  F1=0.91
-
-seq label not vector 15k:
-    T       Pr=1.00  Rc=0.34  F1=0.50
-    F       Pr=0.88  Rc=1.00  F1=0.94
-
-============================================================
-
-Binary (B or BE): 75%
-
-T       Pr=0.79  Rc=0.46  F1=0.58
-F       Pr=0.87  Rc=0.97  F1=0.92
-
-Binary (BE): 55.5%
-
-T       Pr=0.45  Rc=0.08  F1=0.14
-F       Pr=0.94  Rc=0.99  F1=0.97
-
-Binary (E): 71%
-
-T       Pr=0.64  Rc=0.40  F1=0.49
-F       Pr=0.91  Rc=0.96  F1=0.93
-
-Binary (E or BE): 73%
-
-T       Pr=0.77  Rc=0.42  F1=0.55
-F       Pr=0.87  Rc=0.97  F1=0.91
-
-Binary (I): 78%
-
-F       Pr=0.77  Rc=0.63  F1=0.70
-T       Pr=0.82  Rc=0.90  F1=0.86
-
-================================================================
-
-										NBPN		J48			BN
-ubuntu-fr 								42.90%		51.90%		53.00%
-ubuntu-fr w/o consecutive I				28.50%		37.90%		40.40%
-ubuntu-users (first 50k instances)		36.20%		55.00%		56.40%
-
-#################
-TEST WITHOUT NGRAMS AND WITH SAME AMOUT OF TRUE AND FALSE
-##################
-
-=== Summary ===
-
-Correctly Classified Instances       15745               71.5682 %
-Incorrectly Classified Instances      6255               28.4318 %
-Kappa statistic                          0.423 
-Mean absolute error                      0.3081
-Root mean squared error                  0.4012
-Relative absolute error                 61.8117 %
-Root relative squared error             80.3562 %
-Total Number of Instances            22000     
-
-=== Detailed Accuracy By Class ===
-
-               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
-                 0.829     0.411      0.693     0.829     0.755      0.824    T
-                 0.589     0.171      0.755     0.589     0.662      0.824    F
-Weighted Avg.    0.716     0.297      0.722     0.716     0.711      0.824
-
-=== Confusion Matrix ===
-
-    a    b   <-- classified as
- 9620 1984 |    a = T
- 4271 6125 |    b = F
-
-
-#################
-TEST WITHOUT NGRAMS
-####################
-
-=== Summary ===
-
-Correctly Classified Instances       15121               82.8049 %
-Incorrectly Classified Instances      3140               17.1951 %
-Kappa statistic                          0.4262
-Mean absolute error                      0.2627
-Root mean squared error                  0.3704
-Relative absolute error                 69.4688 %
-Root relative squared error             85.175  %
-Total Number of Instances            18261     
-
-=== Detailed Accuracy By Class ===
-
-               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
-                 0.346     0.009      0.932     0.346     0.505      0.772    T
-                 0.991     0.654      0.817     0.991     0.896      0.772    F
-Weighted Avg.    0.828     0.49       0.846     0.828     0.797      0.772
-
-=== Confusion Matrix ===
-
-     a     b   <-- classified as
-  1601  3023 |     a = T
-   117 13520 |     b = F
-
-
-=======================
-test_binary_en_25k.arff
-=======================
-
-# BayesNet #
-
-=== Summary ===
-
-Correctly Classified Instances       19781               81.7228 %
-Incorrectly Classified Instances      4424               18.2772 %
-Kappa statistic                          0.4219
-Mean absolute error                      0.2682
-Root mean squared error                  0.3768
-Relative absolute error                 68.2517 %
-Root relative squared error             85.0095 %
-Total Number of Instances            24205     
-
-=== Detailed Accuracy By Class ===
-
-               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
-                 0.351     0.011      0.919     0.351     0.508      0.762    T
-                 0.989     0.649      0.806     0.989     0.888      0.762    F
-Weighted Avg.    0.817     0.478      0.836     0.817     0.786      0.762
-
-=== Confusion Matrix ===
-
-     a     b   <-- classified as
-  2282  4222 |     a = T
-   202 17499 |     b = F
-
-==========================
-test_no_filter_en_50k.arff
-==========================
-
-# NaiveBayesMultinomial #
-
-=== Summary ===
-
-Correctly Classified Instances       16342               33.2121 %
-Incorrectly Classified Instances     32863               66.7879 %
-Kappa statistic                          0.1127
-Mean absolute error                      0.3413
-Root mean squared error                  0.4988
-Relative absolute error                110.9333 %
-Root relative squared error            127.1809 %
-Total Number of Instances            49205     
-
-=== Detailed Accuracy By Class ===
-
-               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
-                 0.325     0.138      0.751     0.325     0.453      0.628    I
-                 0.461     0.253      0.154     0.461     0.231      0.655    BE
-                 0.432     0.33       0.226     0.432     0.296      0.596    B
-                 0.178     0.129      0.214     0.178     0.194      0.555    E
-Weighted Avg.    0.332     0.182      0.512     0.332     0.362      0.613
-
-=== Confusion Matrix ===
-
-    a    b    c    d   <-- classified as
- 8980 5328 9516 3843 |    a = I
-  521 2054 1349  536 |    b = BE
- 1092 3055 3863  935 |    c = B
- 1369 2917 2402 1445 |    d = E
-
-# BayesNet #
-
-=== Summary ===
-
-Correctly Classified Instances       28468               57.8559 %
-Incorrectly Classified Instances     20737               42.1441 %
-Kappa statistic                          0.2815
-Mean absolute error                      0.2504
-Root mean squared error                  0.3719
-Relative absolute error                 81.4077 %
-Root relative squared error             94.8229 %
-Total Number of Instances            49205     
-
-=== Detailed Accuracy By Class ===
-
-               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
-                 0.775     0.435      0.696     0.775     0.733      0.754    I
-                 0.095     0.016      0.367     0.095     0.151      0.722    BE
-                 0.323     0.031      0.696     0.323     0.441      0.73     B
-                 0.457     0.228      0.284     0.457     0.35       0.698    E
-Weighted Avg.    0.579     0.289      0.598     0.579     0.564      0.737
-
-=== Confusion Matrix ===
-
-     a     b     c     d   <-- classified as
- 21435    53   447  5732 |     a = I
-  1623   423   696  1718 |     b = BE
-  3470   654  2891  1930 |     c = B
-  4271    24   119  3719 |     d = E
-
-# J48 #
-
-=== Summary ===
-
-Correctly Classified Instances       29634               60.2256 %
-Incorrectly Classified Instances     19571               39.7744 %
-Kappa statistic                          0.2516
-Mean absolute error                      0.2474
-Root mean squared error                  0.3852
-Relative absolute error                 80.421  %
-Root relative squared error             98.2083 %
-Total Number of Instances            49205     
-
-=== Detailed Accuracy By Class ===
-
-               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
-                 0.887     0.606      0.653     0.887     0.752      0.729    I
-                 0.059     0.028      0.175     0.059     0.088      0.653    BE
-                 0.412     0.065      0.584     0.412     0.484      0.713    B
-                 0.14      0.064      0.301     0.14      0.191      0.64     E
-Weighted Avg.    0.602     0.366      0.539     0.602     0.55       0.704
-
-=== Confusion Matrix ===
-
-     a     b     c     d   <-- classified as
- 24546   572   953  1596 |     a = I
-  2511   262  1207   480 |     b = BE
-  4361   323  3688   573 |     c = B
-  6189   344   462  1138 |     d = E
-
-===================
-test_no_filter.arff           
-===================
-
-# NaiveBayesMultinomial #
-
-=== Summary ===
-
-Correctly Classified Instances        2458               41.5273 %
-Incorrectly Classified Instances      3461               58.4727 %
-Kappa statistic                          0.1652
-Mean absolute error                      0.298 
-Root mean squared error                  0.4829
-Relative absolute error                 93.6833 %
-Root relative squared error            121.0846 %
-Total Number of Instances             5919     
-
-=== Detailed Accuracy By Class ===
-
-               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
-                 0.529     0.241      0.719     0.529     0.609      0.678    I
-                 0.596     0.292      0.205     0.596     0.305      0.714    BE
-                 0.267     0.189      0.241     0.267     0.253      0.598    B
-                 0.09      0.072      0.198     0.09      0.124      0.552    E
-Weighted Avg.    0.415     0.209      0.487     0.415     0.429      0.647
-
-=== Confusion Matrix ===
-
-    a    b    c    d   <-- classified as
- 1685  685  557  261 |    a = I
-   92  395  144   32 |    b = BE
-  245  489  290   64 |    c = B
-  322  360  210   88 |    d = E
-
-# BayesNet #
-
-=== Summary ===
-
-Correctly Classified Instances        3348               56.5636 %
-Incorrectly Classified Instances      2571               43.4364 %
-Kappa statistic                          0.2427
-Mean absolute error                      0.2646
-Root mean squared error                  0.3722
-Relative absolute error                 83.1615 %
-Root relative squared error             93.3409 %
-Total Number of Instances             5919     
-
-=== Detailed Accuracy By Class ===
-
-               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
-                 0.854     0.544      0.647     0.854     0.736      0.752    I
-                 0.241     0.09       0.252     0.241     0.247      0.746    BE
-                 0.26      0.028      0.674     0.26      0.375      0.721    B
-                 0.185     0.096      0.277     0.185     0.222      0.686    E
-Weighted Avg.    0.566     0.324      0.546     0.566     0.53       0.735
-
-=== Confusion Matrix ===
-
-    a    b    c    d   <-- classified as
- 2724  168   30  266 |    a = I
-  285  160  102  116 |    b = BE
-  515  199  283   91 |    c = B
-  686  108    5  181 |    d = E
-
-# J48 #
-
-=== Summary ===
-
-Correctly Classified Instances        3341               56.4453 %
-Incorrectly Classified Instances      2578               43.5547 %
-Kappa statistic                          0.2371
-Mean absolute error                      0.2616
-Root mean squared error                  0.408 
-Relative absolute error                 82.223  %
-Root relative squared error            102.314  %
-Total Number of Instances             5919     
-
-=== Detailed Accuracy By Class ===
-
-               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
-                 0.84      0.547      0.642     0.84      0.728      0.703    I
-                 0.066     0.043      0.164     0.066     0.095      0.643    BE
-                 0.439     0.1        0.496     0.439     0.466      0.675    B
-                 0.144     0.076      0.274     0.144     0.189      0.616    E
-Weighted Avg.    0.564     0.331      0.501     0.564     0.519      0.676
-
-=== Confusion Matrix ===
-
-    a    b    c    d   <-- classified as
- 2678  129  162  219 |    a = I
-  304   44  245   70 |    b = BE
-  481   44  478   85 |    c = B
-  710   51   78  141 |    d = E
-
-=========
-test.arff           
-=========
-
-# J48 #
-
-=== Summary ===
-
-Correctly Classified Instances        1349               39.6765 %
-Incorrectly Classified Instances      2051               60.3235 %
-Kappa statistic                          0.1681
-Mean absolute error                      0.3247
-Root mean squared error                  0.4705
-Relative absolute error                 88.2257 %
-Root relative squared error            109.687  %
-Total Number of Instances             3400     
-
-=== Detailed Accuracy By Class ===
-
-               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
-                 0.318     0.158      0.317     0.318     0.317      0.634    I
-                 0.086     0.091      0.186     0.086     0.117      0.593    BE
-                 0.527     0.246      0.505     0.527     0.516      0.627    B
-                 0.51      0.332      0.391     0.51      0.443      0.626    E
-Weighted Avg.    0.397     0.225      0.374     0.397     0.379      0.621
-
-=== Confusion Matrix ===
-
-   a   b   c   d   <-- classified as
- 203  61  93 282 |   a = I
- 103  57 306 198 |   b = BE
- 117  84 578 317 |   c = B
- 217 105 168 511 |   d = E
-
-# BayesNet #
-
-=== Summary ===
-
-Correctly Classified Instances        1434               42.1765 %
-Incorrectly Classified Instances      1966               57.8235 %
-Kappa statistic                          0.2026
-Mean absolute error                      0.3218
-Root mean squared error                  0.4094
-Relative absolute error                 87.4629 %
-Root relative squared error             95.4344 %
-Total Number of Instances             3400     
-
-=== Detailed Accuracy By Class ===
-
-               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
-                 0.343     0.112      0.416     0.343     0.376      0.699    I
-                 0.14      0.083      0.29      0.14      0.189      0.657    BE
-                 0.401     0.144      0.57      0.401     0.471      0.704    B
-                 0.682     0.458      0.383     0.682     0.491      0.675    E
-Weighted Avg.    0.422     0.218      0.431     0.422     0.404      0.685
-
-=== Confusion Matrix ===
-
-   a   b   c   d   <-- classified as
- 219  38  59 323 |   a = I
-  71  93 172 328 |   b = BE
-  77 132 439 448 |   c = B
- 160  58 100 683 |   d = E
-
- # NaiveBayesMultinomial #
-
- === Summary ===
-
-Correctly Classified Instances        1093               32.1471 %
-Incorrectly Classified Instances      2307               67.8529 %
-Kappa statistic                          0.0876
-Mean absolute error                      0.3512
-Root mean squared error                  0.5014
-Relative absolute error                 95.4471 %
-Root relative squared error            116.8995 %
-Total Number of Instances             3400     
-
-=== Detailed Accuracy By Class ===
-
-               TP Rate   FP Rate   Precision   Recall  F-Measure   ROC Area  Class
-                 0.002     0.002      0.143     0.002     0.003      0.538    I
-                 0.598     0.412      0.26      0.598     0.363      0.627    BE
-                 0.255     0.229      0.346     0.255     0.293      0.528    B
-                 0.416     0.269      0.392     0.416     0.403      0.58     E
-Weighted Avg.    0.321     0.234      0.305     0.321     0.285      0.565
-
-=== Confusion Matrix ===
-
-   a   b   c   d   <-- classified as
-   1 256 166 216 |   a = I
-   0 397 147 120 |   b = BE
-   2 505 279 310 |   c = B
-   4 367 214 416 |   d = E
-
+#            	Result:	Base.:	T.T.:
+# seg. ratio:	x0.39	x1.56	x0.59
