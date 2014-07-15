@@ -1,0 +1,37 @@
+==========
+ANNOTATION
+==========
+
+1)	Sentences are identified (can be automated)
+
+2)	a. Sentences are classified into speech acts (see "TAXONOMY")
+	b. Speech acts dependencies are found
+
+3)	a. Sentences that do not bear the same speech act as the previous one are marked as boundaries
+	b. Further boundaries are inserted when, for two consecutive sentences:
+		i. their speech acts are either Q-Q or OTHER
+		ii. their speech acts are linked to different ones
+
+========
+TAXONOMY
+========
+
+CLASS					ABBR.		DESCRIPTION																									DEPENDENCY
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+QUESTION-QUESTION		Q-Q			contains a new question, independent of the thread context that precedes it									A-A (optional)
+QUESTION-ADD			Q-ADD		supplements a question by providing additional information, or asking a follow-up question					Q-Q
+QUESTION-PROBLEM		Q-PROB		introduces a question by stating a problem or one's motivations												Q-Q
+QUESTION-CONFIRMATION	Q-CONF		confirms details of the question or confirms that the same problem is being experienced by a non-initiator	Q-Q
+QUESTION-CORRECTION		Q-CORR		corrects error(s) in a question																				Q-Q
+QUESTION-RESOLUTION		Q-RES		confirms the question has been answered or rendered moot													Q-Q, A-A (optional)
+
+ANSWER-ANSWER			A-A			proposes an answer to a question																			Q-Q
+ANSWER-ADD				A-ADD		supplements an answer by providing additional information													A-A
+ANSWER-CONFIRMATION		A-CONF		confirms details of the answer and/or that it should work													A-A
+ANSWER-CORRECTION		A-CORR		points out error(s) in an answer and/or corrects them														A-A
+ANSWER-OBJECTION		A-OBJ		objects to an answer																						A-A
+ANSWER-ACKNOWLEDGMENT	A-ACKN		acknowledges an answer without confirming or hindering it (by the question initiator only)					A-A
+
+UNGRAMMATICAL			U			is not grammatical (noise, punctuation, code, link, markup, ASCII art...)									-
+CIVILITY				CIV			is a polite mechanism (greetings, signature, thanks...)														-
+OTHER					O			does not belong to any of the above classes																	-
